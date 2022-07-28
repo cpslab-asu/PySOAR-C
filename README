@@ -1,0 +1,13 @@
+poetry installation from: https://python-poetry.org/docs/master/
+
+after installing:
+1) go into pysoar package
+cd pysoar
+
+2) create the virtual environment
+poetry update
+
+3) run the demo function files using 
+poetry run coverage run -m unittest demos/run_pysoar.py
+
+Staliro files in staliroIntegration
