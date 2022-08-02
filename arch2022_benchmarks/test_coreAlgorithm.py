@@ -59,16 +59,16 @@ benchmark = "NLF"
 # print(specification)
 
 def test_function(X):
-    return (X[0]**2 + X[1] - 11)**2 + (X[1]**2 + X[0] - 7)**2 - 40 
+    return (X[0] ** 2 + X[1] - 11) ** 2 + (X[1] ** 2 + X[0] - 7) ** 2 - 5.
 
 MAX_BUDGET = 2000
 NUMBER_OF_MACRO_REPLICATIONS = 10
 # n_0, nSamples, inpRanges, alpha_lvl_set, eta0, eta1, delta, gamma, eps_tr, prob, seed, local_search, folder_name, benchmark_name
-PySOAR(
-    n_0= 50,
-    nSamples = 100,
-    # trs_max_budget = 10,
-    inpRanges = np.array([[-5.,5.],[-5.,5.]]),
+point_history, modes, simultation_time = PySOAR(
+    n_0= 20,
+    nSamples = 500,
+    trs_max_budget = 20,
+    inpRanges = np.array([[-6.,0.],[-6.,6.]]),
     alpha_lvl_set = .05,
     eta0 = .25,
     eta1 = .75,
@@ -76,10 +76,41 @@ PySOAR(
     gamma = 1.25,
     eps_tr = 0.01,
     prob = test_function,
-    # gpr_model = InternalGPR(),
+    gpr_model = InternalGPR(),
     seed = 123456,
-    local_search= "",
+    local_search= "gp_local_search",
     folder_name= results_folder,
     benchmark_name= f"{benchmark}_budget_{MAX_BUDGET}_{NUMBER_OF_MACRO_REPLICATIONS}_reps",
-    # behavior = "Minimization"
+    behavior = "Minimization"
     )
+
+import pickle
+
+with open("TEST123/NLF_budget_2000_10_reps/NLF_budget_2000_10_reps_seed_123456.pkl", "rb") as f:
+    point_history, modes, simultation_time = pickle.load(f)
+
+point_history = np.array(point_history, dtype = object)
+distinction = np.array(point_history[:,2])
+modes = np.array(point_history[:,3])
+print(point_history)
+subset_1 = point_history[modes == 0, :]
+# print(np.array(subset_1[:,1]))
+
+
+from matplotlib import pyplot as plt
+fig = plt.figure()
+        
+ax = fig.add_subplot(111)
+
+for i in np.unique(distinction):
+    print(distinction == i)
+    
+    subset_1 = point_history[np.logical_and(np.logical_or(modes == 1, modes == 3), distinction == i), :]
+    if subset_1.shape[0] != 0:
+        points = np.stack(subset_1[:,1])
+        ax.plot(points[:,0], points[:,1], markersize = 5)
+        ax.plot(points[0,0], points[0,1], '*', markersize = 5)
+    
+plt.show()
+# subset_1 = point_history[ == 0, :]
+# print(subset_1)

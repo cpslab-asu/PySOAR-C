@@ -20,5 +20,5 @@ class Fn:
             self.mode_count += 1
 
         self.modes.append(self.mode_count)
-        self.point_history.append([self.count, sample, self.mode_count, rob_val])
+        self.point_history.append([self.count, sample, self.mode_count, mode, rob_val])
         return rob_val

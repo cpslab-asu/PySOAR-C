@@ -13,7 +13,7 @@ def compute_robustness(samples_in: npt.NDArray, mode:int, behavior:str, test_fun
     Returns:
         Fitness (robustness) of the given sample(s)
     """
-    if mode not in {0,1,2}:
+    if mode not in {0,1,2,3}:
         raise ValueError(f"Received mode = {mode}. Expected mode from set (0,1,2)")
     
     falsified = False

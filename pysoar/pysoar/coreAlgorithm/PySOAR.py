@@ -8,8 +8,8 @@ from copy import deepcopy
 import numpy as np
 import math
 
-from ..trustRegion import local_gp_tr, gradient_based_tr
-from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd
+from ..trustRegion import local_gp_tr, gradient_based_tr, local_best_ei
+from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd, pointsInTR
 from ..sampling import lhs_sampling, uniform_sampling
 from ..gprInterface import GPR
 
@@ -45,7 +45,7 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
 
     
     while (tf_wrapper.count < nSamples) and (not falsified):
-        
+        print(f"{tf_wrapper.count} Evaluations completed")
         gpr = GPR(deepcopy(gpr_model))
         gpr.fit(x_train, y_train)
 
@@ -53,7 +53,7 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         lower_bound_theta = np.ndarray.flatten(inpRanges[:, 0])
         upper_bound_theta = np.ndarray.flatten(inpRanges[:, 1])
         
-        random_samples = uniform_sampling(2000, inpRanges, tf_dim, rng)
+        random_samples = uniform_sampling(3000, inpRanges, tf_dim, rng)
         min_bo_val = EI_obj(random_samples)
 
         min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])
@@ -77,7 +77,9 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         )
         EI_star_x = new_params.x
         EI_star = -1 * EI_obj(EI_star_x) #actual problem is that of maximization, so earlier we multipled by -1
-        
+        # print("********************************************************")
+        # print(EI_star, EI_star_x)
+        # print("********************************************************")
         # print("*********************************************************************")
         # optimize CD using constrained pso
         # const = lambda x: EIcalc_kd(y_train, x, gpr) - (alpha_lvl_set * (EI_star))
@@ -158,6 +160,9 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
             if min_eicd is None or opt_obj(new_params.x) < min_eicd_val:
                 min_eicd = new_params.x
                 min_eicd_val = opt_obj(min_eicd)
+            
+            if not new_params.success:
+                continue
                 
         new_params = minimize(
             opt_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_eicd
@@ -167,132 +172,66 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         pred_sample_y, falsified = compute_robustness(pred_sample_x, 1, behavior, tf_wrapper)
         if falsified:
             return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
-        
         x_train = np.vstack((x_train, pred_sample_x))
         y_train = np.hstack((y_train, pred_sample_y))
         
-        print(pred_sample_x)
-        print(inpRanges[:, 0])
-        print(inpRanges[:, 1])
         ######### LOCAL SEARCH PHASE ###########
+        restart_point_x, restart_point_y = deepcopy(pred_sample_x), deepcopy(pred_sample_y)
+
         # Initialize TR Bounds
         TR_Bounds = np.vstack(
-            [pred_sample_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - pred_sample_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 10])
+            [restart_point_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - restart_point_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 10])
 
         
         TR_size = np.min(TR_Bounds)
-        TR = np.vstack([pred_sample_x[0,:] - TR_size, pred_sample_x[0,:] + TR_size])
-        print(TR_Bounds)
-        print(TR_size)
-        print(TR)
-        print(f"time elapsed = {time.time() - t}")
-        print(fvs)
-        all_local_x = x0
-        all_local_y = f0
-        local_in_TR_idx = np.all(np.vstack([np.all(all_local_x >= TR[0, :].reshape(-1, 1).T),
-                                            np.all(all_local_x <= TR[1, :].reshape(-1, 1).T)]), axis=0)
-        m = sum(local_in_TR_idx)
-        xTrain_local = x0
-        yTrain_local = f0
+        trust_region = np.empty((inpRanges.shape))
+        for d in range(tf_dim): 
+            trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
+            trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
 
+        
+        x_train_subset, y_train_subset = pointsInTR(x_train, y_train, trust_region)
+        num_points_present = x_train_subset.shape[0]
         ####### Enter TR Meta Model Loop ######
         local_counter = 0
-        max_loc_iter = 10
+        max_loc_iter = trs_max_budget
+        
+
         if local_search == "gp_local_search":
-            while local_counter <= max_loc_iter \
-                    and TR_size > eps_tr * min((inpRanges[0][:, 1] - inpRanges[0][:,0]).flatten()) \
-                    and dimOK4budget \
-                    and sim_count + n_0 - m <= nSamples \
-                    and run['falsified'] != 1:
-                start = sim_count
-                # initialize local samples and values
-                print('starting localGPs TR search...')
-                if n_0 - m > 0:
+            while (local_counter <= max_loc_iter 
+                    and TR_size > eps_tr * np.min((inpRanges[:, 1] - inpRanges[:,0])) 
+                    and tf_wrapper.count + (max_loc_iter - num_points_present + 1) <= nSamples):
+                print(trust_region)
+                
+                if max_loc_iter - num_points_present > 0:
+                    num_samples_needed = max_loc_iter - num_points_present
                     # draw a new lhs over the current TR
-                    x0_local = lhs_sampling(n_0 - m, inpRanges, nInputs, rng)[0]
-                    for i in range(n_0 - m):
-                        curSample_local = x0_local[i, :]
-                        curVal_local = calculate_robustness(curSample_local, prob)
-                        sim_count += 1
-                        # store as necessary
-                        history['cost'] = np.vstack((history['cost'], curVal_local))
-                        history['rob'] = np.vstack((history['rob'], curVal_local))
-                        history['samples'] = np.vstack((history['samples'], curSample_local))
-                        # find and store the best value seen so far
-                        minmax_val = minmax(history['rob'])
-                        minmax_idx = np.where(history['rob'] == minmax_val)[0][0]
-                        if fcn_cmp(minmax_val, bestCost):
-                            bestCost = minmax_val
-                            history['f_star'] = np.vstack([history['f_star'], minmax_val])
-                            run['bestCost'] = minmax_val
-                            run['bestSample'] = history['samples'][minmax_idx, :]
-                            run['bestRob'] = minmax_val
-                            print('Best ==>' + str(run['bestSample']) + str(minmax_val))
-                        else:
-                            history['f_star'] = np.vstack([history['f_star'], bestCost])
-                            print('Best ==>' + str(bestCost))
-                        if fcn_cmp(bestCost, 0):  # and StopCond:
-                            run['falsified'] = 1
-                            run['nTests'] = sim_count
-                            print('SOAR_Taliro: FALSIFIED!')
-                            print('FinGlobalMod_: ', seed, 'GPmod', 'yTrain')
-                    # add newly drawn points to list of all local points
-                    curVal_local = history['rob'][-n_0 + m:]
-                    # add newly drawn points to list of all local points
-                    all_local_x = np.vstack([all_local_x, x0_local])
-                    all_local_y = np.vstack([all_local_y, curVal_local])
-                    ############## store the local samples separately
-                    history['local_samples'] = np.vstack([history['local_samples'], x0_local])
-                    all_x = np.vstack([all_x, x0_local])
-                    all_y = np.vstack([all_y, curVal_local])
-                    xTrain_local = np.vstack([xTrain_local, x0_local])
-                    yTrain_local = np.vstack([yTrain_local, curVal_local])
+                    x0_local = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
+                    y0_local, falsified = compute_robustness(x0_local, 2, behavior, tf_wrapper)
+                    if falsified:
+                        return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
+
+                    x_train = np.vstack((x_train, x0_local))
+                    y_train = np.hstack((y_train, y0_local))
+
+                    x_train_subset = np.vstack((x_train_subset, x0_local))
+                    y_train_subset = np.hstack((y_train_subset, y0_local))
+                
                 # Fit Gaussian Process Meta Model Locally
-                xk, fk, rho = local_gp_tr(x0, f0, n_0, nInputs, prob, TR, xTrain_local, yTrain_local)
-                # store to current sample and value
-                curSample = np.vstack((curSample, xk.reshape(-1, 1).T))
-                curVal = np.vstack((curVal, fk.T))
-                sim_count += 1
-                # store as necessary
-                history['cost'] = np.vstack((history['cost'], curVal[-1]))
-                history['rob'] = np.vstack((history['rob'], curVal[-1]))
-                history['samples'] = np.vstack((history['samples'], curSample[-1, :]))
-                history['local_samples'] = np.vstack([history['local_samples'], curSample[-1, :]])
-                # find and store the best value seen so far
-                minmax_val = minmax(curVal)
-                minmax_idx = np.where(curVal == minmax_val)[0][0]
-                if fcn_cmp(minmax_val, bestCost):
-                    bestCost = minmax_val
-                    history['f_star'] = np.vstack([history['f_star'], minmax_val])
-                    run['bestCost'] = minmax_val
-                    run['bestRob'] = minmax_val
-                    run['bestSample'] = curSample[minmax_idx, :]
-                    print('Best ==>' + str(run['bestSample']) + str(minmax_val))
-                else:
-                    history['f_star'] = np.vstack([history['f_star'], bestCost])
-                    # best_idx = np.where(curVal == bestCost)
-                    print('Best ==>' + str(bestCost))
-                # check if best value is falsifying, if so, exit as necessary
-                if fcn_cmp(bestCost, 0):  # and StopCond:
-                    run['falsified'] = 1
-                    run['nTests'] = sim_count
-                    print('SOAR_Taliro: FALSIFIED!')
-                    print('FinGlobalMod_: ', seed, 'GPmod', 'yTrain')
+                
+                xk, fk, rho, falsified = local_best_ei(restart_point_x, restart_point_y, tf_wrapper, tf_dim, trust_region, x_train_subset, y_train_subset, behavior, gpr_model, rng)
+                if falsified:
+                    return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
+                x_train = np.vstack((x_train, xk))
+                y_train = np.hstack((y_train, fk))
 
-                # store xk candidates to all samples and all local samples
-                all_x = np.vstack([all_x, xk])
-                all_y = np.vstack([all_y, fk])
-                all_local_x = np.vstack([all_local_x, xk])
-                all_local_y = np.vstack([all_local_y, fk])
-
-                ############# temporary
-                traj['restart'] = np.vstack([traj['restart'], restart])
-                traj['xk'] = np.vstack([traj['xk'], xk])
-                print('@@@@@@@@@@@@@@@@@@@@', local_counter, restart, xk)
-                ############# temporary
-
-                max_indicator = max(np.abs(xk - x0)) / TR_size
-                test = np.random.rand()
+                x_train_subset = np.vstack((x_train_subset, xk))
+                y_train_subset = np.hstack((y_train_subset, fk))
+                print(xk, fk, rho, falsified)
+                
+                """ What the use of this?
+                max_indicator = max(np.abs(xk - pred_sample_x)) / TR_size
+                test = rng.random()
                 if max_indicator < test:
                     local_counter += 1
                     local_budget = sim_count - start
@@ -303,57 +242,39 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
                 local_budget = sim_count - start
                 local_budget_used.append(local_budget)
                 history['TR_budget_used'] = np.array(local_budget_used)
+                """
 
                 # execute RC testing and TR control
                 if rho < eta0:
-                    x0 = x0
                     TR_size *= delta
-                    TR = np.vstack([x0 - TR_size, x0 + TR_size])
+                    trust_region = np.empty((inpRanges.shape))
+                    for d in range(tf_dim): 
+                        trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
+                        trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
                 else:
                     if eta0 < rho < eta1:
                         # low pass of RC test
-                        x0 = xk
-                        f0 = fk
-                        valid_bound = np.hstack([x0 - inpRanges[0][:, 0], inpRanges[0][:, 1] - x0, TR_size])
+                        restart_point_x = xk
+                        restart_point_y = fk
+                        
+                        valid_bound = np.min([np.min(restart_point_x[0,:] - inpRanges[:, 0]), np.min(inpRanges[:, 1] - restart_point_x[0,:]), TR_size])
                     else:
                         # high pass of RC test
-                        x0 = xk
-                        f0 = fk
-                        valid_bound = np.hstack([x0 - inpRanges[0][:, 0], inpRanges[0][:, 1] - x0, TR_size * gamma])
-                    TR_size = min(valid_bound.flatten())
-                    TR = np.vstack([x0 - TR_size, x0 + TR_size])
+                        restart_point_x = xk
+                        restart_point_y = fk
+                        valid_bound = np.min([np.min(restart_point_x[0,:] - inpRanges[:, 0]), np.min(inpRanges[:, 1] - restart_point_x[0,:]), TR_size*gamma])
+                    
+                TR_size = np.min(valid_bound)
+                trust_region = np.empty((inpRanges.shape))
+                
+                for d in range(tf_dim): 
+                    trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
+                    trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
 
+                local_counter += 1
+                x_train_subset, y_train_subset = pointsInTR(x_train, y_train, trust_region)
+                num_points_present = x_train_subset.shape[0]
                 # check if budget has been exhausted
-                if sim_count >= nSamples:
-                    run['nTests'] = sim_count
-                    print('SOAR_Taliro: Samples Exhausted!')
-                    print('FinGlobalMod_: ', seed, 'GPmod', 'yTrain')
-                    break
-
-                # check old local points in new TR, build local training set
-                local_in_TR_idx = np.all(np.vstack([np.all(all_local_x >= TR[0, :].reshape(-1, 1).T, axis=1),
-                                                    np.all(all_local_x <= TR[1, :].reshape(-1, 1).T, axis=1)]), axis=0)
-                m = sum(local_in_TR_idx)
-                xTrain_local = all_local_x[local_in_TR_idx, :]
-                yTrain_local = all_local_y[local_in_TR_idx, 0].reshape(-1, 1)
-
-        # add to global samples separately
-        if x0 in history['global_samples']:
-            print('no new point')
-        else:
-            history['global_samples'] = np.vstack([history['global_samples'], x0])
-        history['local_samples'] = np.delete(history['local_samples'], -1, 0)
-
-        # add EI point to the global set and local set
-        xTrain = np.vstack([xTrain, x0])
-        yTrain = np.vstack([yTrain, f0])
-
-        print(sim_count)
-
-    print(history['samples'].shape, history['rob'].shape, history['f_star'].shape, history['global_samples'].shape,
-          history['local_samples'].shape)
-    print('SOAR_Taliro: Samples Exhausted!')
-    run['nTests'] = nSamples
 
     base_path = pathlib.Path()
     results_directory = base_path.joinpath(folder_name)
@@ -363,6 +284,6 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
     benchmark_directory.mkdir(exist_ok=True)
 
     with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-        pickle.dump(history, f)
+        pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
 
-    return run, history, traj
+    return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
