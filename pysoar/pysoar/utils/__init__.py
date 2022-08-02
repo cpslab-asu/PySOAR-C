@@ -1,8 +1,8 @@
-from .calculate_robustness import calculate_robustness
-from .testFunction import callCounter
+from .compute_robustness import compute_robustness
+from .function import Fn
 from .quadratic_model import quadratic_model
-from .EIcalc_kd import EIcalc_kd, neg_EIcalc_kd
-from .CrowdingDist_kd import CrowdingDist_kd, neg_CrowdingDist_kd
+from .EIcalc_kd import EIcalc_kd
+from .CrowdingDist_kd import CrowdingDist_kd
+from .ei_cd import ei_cd
 
-
-__all__ = ["calculate_robustness", "callCounter", "quadratic_model", "EIcalc_kd", "neg_EIcalc_kd", "CrowdingDist_kd", "neg_CrowdingDist_kd"]
+__all__ = ["compute_robustness", "Fn", "quadratic_model", "EIcalc_kd", "CrowdingDist_kd", "ei_cd"]

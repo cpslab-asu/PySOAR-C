@@ -1,5 +1,5 @@
 from ..kriging_gpr.interface import OK_Rpredict, OK_Rmodel_kd_nugget
-from ..utils import calculate_robustness, quadratic_model, EIcalc_kd
+from ..utils import compute_robustness, quadratic_model, EIcalc_kd
 
 import numpy as np
 import math

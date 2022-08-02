@@ -1,56 +1,70 @@
-from ..kriging_gpr.interface import OK_Rpredict
-
+from typing import Callable, Tuple
 import numpy as np
+from numpy.typing import NDArray
+from scipy.optimize import minimize
 from scipy.stats import norm
 
 
+def _surrogate(gpr_model: Callable, x_train: NDArray):
+    """_surrogate Model function
 
-def EIcalc_kd(x_0, x, M_model, y):
-    curr_best = min(y)
-    curr_best_ind = np.argmin(y)
-    b_0 = np.ones((x_0.shape[0], 1))
-    y_0, s_0 = OK_Rpredict(M_model, x_0, 0)
-    i = 0
-    found = 0
-    while i < x_0.shape[0] and found == 0:
-        if x_0[i, :].all() == x[curr_best_ind, :].all():
-            curr_best = y_0[i]
-            found = 1
-        else:
-            i += 1
-    counts = x_0.shape[0]
-    ei_0 = np.zeros((x_0.shape[0], 1))
-    s_0 = s_0.flatten().astype(float)
-    s_0 = np.sqrt(s_0).reshape(-1, 1)
-    for i in range(counts):
-        if s_0[i] > 0:
-            ei_0[i] = (curr_best - y_0[i]) * norm.cdf((curr_best-y_0[i])/s_0[i]) \
-                      + s_0[i] * norm.pdf((curr_best-y_0[i])/s_0[i])
-        else:
-            ei_0[i] = 0
-    return ei_0.flatten() #, s_0, y_0
+    Args:
+        model: Gaussian process model
+        X: Input points
 
-def neg_EIcalc_kd(x_0, x, M_model, y):
-    curr_best = min(y)
-    curr_best_ind = np.argmin(y)
-    b_0 = np.ones((x_0.shape[0], 1))
-    y_0, s_0 = OK_Rpredict(M_model, x_0, 0)
-    i = 0
-    found = 0
-    while i < x_0.shape[0] and found == 0:
-        if x_0[i, :].all() == x[curr_best_ind, :].all():
-            curr_best = y_0[i]
-            found = 1
+    Returns:
+        Predicted values of points using gaussian process model
+    """
+
+    return gpr_model.predict(x_train)
+
+def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: Callable) -> NDArray:
+    """Acquisition Model: Expected Improvement
+
+    Args:
+        y_train: corresponding robustness values
+        sample: Sample(s) whose EI is to be calculated
+        gpr_model: GPR model
+        sample_type: Single sample or list of model. Defaults to "single". other options is "multiple".
+
+    Returns:
+        EI of samples
+    """
+    curr_best = np.min(y_train)
+    # print(sample.shape)
+    if len(sample.shape) == 2:
+        mu, std = _surrogate(gpr_model, sample)
+        ei_list = []
+        for mu_iter, std_iter in zip(mu, std):
+            pred_var = std_iter
+            if pred_var > 0:
+                var_1 = curr_best - mu_iter
+                var_2 = var_1 / pred_var
+
+                ei = (var_1 * norm.cdf(var_2)) + (
+                    pred_var * norm.pdf(var_2)
+                )
+            else:
+                ei = 0.0
+
+            ei_list.append(ei)
+        return_ei = np.array(ei_list)
+    elif len(sample.shape) == 1:
+        
+        mu, std = _surrogate(gpr_model, sample.reshape(1, -1))
+        pred_var = std[0]
+        if pred_var > 0:
+            var_1 = curr_best - mu[0]
+            var_2 = var_1 / pred_var
+
+            ei = (var_1 * norm.cdf(var_2)) + (
+                pred_var * norm.pdf(var_2)
+            )
         else:
-            i += 1
-    counts = x_0.shape[0]
-    ei_0 = np.zeros((x_0.shape[0], 1))
-    s_0 = s_0.flatten().astype(float)
-    s_0 = np.sqrt(s_0).reshape(-1, 1)
-    for i in range(counts):
-        if s_0[i] > 0:
-            ei_0[i] = (curr_best - y_0[i]) * norm.cdf((curr_best - y_0[i]) / s_0[i]) \
-                      + s_0[i] * norm.pdf((curr_best - y_0[i]) / s_0[i])
-        else:
-            ei_0[i] = 0
-    return -ei_0.flatten()
+            ei = 0.0
+        return_ei = ei
+
+    
+        
+
+    return return_ei
