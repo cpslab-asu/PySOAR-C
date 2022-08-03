@@ -209,7 +209,7 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         if local_search == "gp_local_search":
             while (local_counter <= max_loc_iter 
                     and TR_size > eps_tr * np.min((inpRanges[:, 1] - inpRanges[:,0])) 
-                    and tf_wrapper.count + (max_loc_iter - num_points_present + 1) <= nSamples):
+                    and tf_wrapper.count + (max(max_loc_iter - num_points_present,0) + 1) <= nSamples):
                 
                 
                 if max_loc_iter - num_points_present > 0:
@@ -236,14 +236,12 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
 
                 x_train_subset = np.vstack((x_train_subset, xk))
                 y_train_subset = np.hstack((y_train_subset, fk))
-                print(xk, fk, rho, falsified)
+                # print(xk, fk, rho, falsified)
                 
                 # """ What the use of this?
                 max_indicator = np.max(np.abs(xk - restart_point_x)) / TR_size
                 test = rng.random()
                 if max_indicator < test:
-                    local_counter += 1
-                    
                     break
                 
                 
