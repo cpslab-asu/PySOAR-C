@@ -38,7 +38,7 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
 
     x_train = lhs_sampling(n_0, inpRanges, tf_dim, rng)
     
-    y_train, falsified = compute_robustness(x_train, 0, behavior, tf_wrapper)
+    y_train, falsified = compute_robustness(x_train, 0, behavior, inpRanges, tf_wrapper)
 
     if falsified:
         return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
@@ -66,12 +66,15 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
                 x0=min_bo,
             )
 
-            if not new_params.success:
-                continue
+            
 
             if min_bo is None or EI_obj(new_params.x) < min_bo_val:
                 min_bo = new_params.x
                 min_bo_val = EI_obj(min_bo)
+
+            if not new_params.success:
+                continue
+
         new_params = minimize(
             EI_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_bo
         )
@@ -169,7 +172,7 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         )
         pred_sample_x = np.array([np.array(new_params.x)])
         
-        pred_sample_y, falsified = compute_robustness(pred_sample_x, 1, behavior, tf_wrapper)
+        pred_sample_y, falsified = compute_robustness(pred_sample_x, 1, behavior, inpRanges, tf_wrapper)
         if falsified:
             return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
         x_train = np.vstack((x_train, pred_sample_x))
@@ -181,9 +184,15 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
         # Initialize TR Bounds
         TR_Bounds = np.vstack(
             [restart_point_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - restart_point_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 10])
+        """
+        x = [[1,2]]
+        inpRanges = [[-6,0],[-6,6]]
+        min([7,8], [1,-4] [0.6, 1.2])
 
+        """
         
-        TR_size = np.min(TR_Bounds)
+
+        TR_size = np.min(np.abs(TR_Bounds))
         trust_region = np.empty((inpRanges.shape))
         for d in range(tf_dim): 
             trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
@@ -201,13 +210,13 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
             while (local_counter <= max_loc_iter 
                     and TR_size > eps_tr * np.min((inpRanges[:, 1] - inpRanges[:,0])) 
                     and tf_wrapper.count + (max_loc_iter - num_points_present + 1) <= nSamples):
-                print(trust_region)
+                
                 
                 if max_loc_iter - num_points_present > 0:
                     num_samples_needed = max_loc_iter - num_points_present
                     # draw a new lhs over the current TR
                     x0_local = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
-                    y0_local, falsified = compute_robustness(x0_local, 2, behavior, tf_wrapper)
+                    y0_local, falsified = compute_robustness(x0_local, 2, behavior, trust_region, tf_wrapper)
                     if falsified:
                         return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
 
@@ -229,20 +238,15 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
                 y_train_subset = np.hstack((y_train_subset, fk))
                 print(xk, fk, rho, falsified)
                 
-                """ What the use of this?
-                max_indicator = max(np.abs(xk - pred_sample_x)) / TR_size
+                # """ What the use of this?
+                max_indicator = np.max(np.abs(xk - restart_point_x)) / TR_size
                 test = rng.random()
                 if max_indicator < test:
                     local_counter += 1
-                    local_budget = sim_count - start
-                    local_budget_used.append(local_budget)
-                    history['TR_budget_used'] = np.array(local_budget_used)
-                    # break
-                local_counter += 1
-                local_budget = sim_count - start
-                local_budget_used.append(local_budget)
-                history['TR_budget_used'] = np.array(local_budget_used)
-                """
+                    
+                    break
+                
+                
 
                 # execute RC testing and TR control
                 if rho < eta0:
@@ -257,19 +261,19 @@ def PySOAR(n_0, nSamples, trs_max_budget, inpRanges, alpha_lvl_set, eta0, eta1, 
                         restart_point_x = xk
                         restart_point_y = fk
                         
-                        valid_bound = np.min([np.min(restart_point_x[0,:] - inpRanges[:, 0]), np.min(inpRanges[:, 1] - restart_point_x[0,:]), TR_size])
+                        # valid_bound = np.min([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size])
                     else:
                         # high pass of RC test
                         restart_point_x = xk
                         restart_point_y = fk
-                        valid_bound = np.min([np.min(restart_point_x[0,:] - inpRanges[:, 0]), np.min(inpRanges[:, 1] - restart_point_x[0,:]), TR_size*gamma])
-                    
-                TR_size = np.min(valid_bound)
-                trust_region = np.empty((inpRanges.shape))
-                
-                for d in range(tf_dim): 
-                    trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
-                    trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
+                        # valid_bound = np.min([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size*gamma])
+                        TR_size *= gamma
+                        # TR_size = np.min(valid_bound)
+                        trust_region = np.empty((inpRanges.shape))
+                        
+                        for d in range(tf_dim): 
+                            trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
+                            trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
 
                 local_counter += 1
                 x_train_subset, y_train_subset = pointsInTR(x_train, y_train, trust_region)

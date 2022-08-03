@@ -4,7 +4,7 @@ from typing import List, Type
 from .function import Fn
 
 
-def compute_robustness(samples_in: npt.NDArray, mode:int, behavior:str, test_function: Type[Fn]) -> npt.NDArray:
+def compute_robustness(samples_in: npt.NDArray, mode:int, behavior:str, region, test_function: Type[Fn]) -> npt.NDArray:
     """Compute the fitness (robustness) of the given sample.
 
     Args:
@@ -18,13 +18,13 @@ def compute_robustness(samples_in: npt.NDArray, mode:int, behavior:str, test_fun
     
     falsified = False
     if samples_in.shape[0] == 1:
-        samples_out = np.array([test_function(samples_in[0], mode)])
+        samples_out = np.array([test_function(samples_in[0], mode, region)])
         if samples_out < 0 and behavior == "Falsification":
             falsified = True
     else:
         samples_out = []
         for sample in samples_in:
-            rob = test_function(sample, mode)
+            rob = test_function(sample, mode, region)
             samples_out.append(rob)
             if rob < 0 and behavior == "Falsification":
                 falsified = True

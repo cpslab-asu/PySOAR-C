@@ -9,7 +9,7 @@ class Fn:
         self.mode_count = 0
         self.modes = []
 
-    def __call__(self, sample, mode):
+    def __call__(self, sample, mode, region):
         self.count = self.count + 1
         sim_time_start = time.perf_counter()
         rob_val = self.func(sample)
@@ -20,5 +20,5 @@ class Fn:
             self.mode_count += 1
 
         self.modes.append(self.mode_count)
-        self.point_history.append([self.count, sample, self.mode_count, mode, rob_val])
+        self.point_history.append([self.count, sample, self.mode_count, mode, region, rob_val])
         return rob_val

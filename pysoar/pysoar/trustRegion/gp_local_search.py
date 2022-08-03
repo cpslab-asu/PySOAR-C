@@ -41,7 +41,7 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, tf_dim, trust_region
     )
     xk = np.array([np.array(new_params.x)])
     
-    fk, falsified = compute_robustness(xk, 3, behavior, tf_wrapper)
+    fk, falsified = compute_robustness(xk, 3, behavior, trust_region, tf_wrapper)
     
     rho = (pred_sample_y - fk) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
 
