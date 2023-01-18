@@ -1,13 +1,14 @@
 poetry installation from: https://python-poetry.org/docs/master/
 
 after installing:
-1) go into pysoar package
-cd pysoar
+1) go into arch2022_benchmarks
+cd arch_benchmarks
 
 2) create the virtual environment
 poetry update
 
-3) run the demo function files using 
-poetry run coverage run -m unittest demos/run_pysoar.py
+3) Install matlab in environemnt path
 
-Staliro files in staliroIntegration
+3) run the AT1 demo and store the results in Test_AT1 folder
+poetry run python benchmarks AT1 -f"Test_AT1"
+

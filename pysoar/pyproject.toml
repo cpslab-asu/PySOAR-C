@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pysoar"
-version = "0.1.0"
+version = "0.1.2"
 description = ""
 authors = ["Mina Jiang <XXXXX@asu.edu>"]
 
@@ -16,6 +16,9 @@ scikit-optimize = "^0.9.0"
 psy-taliro = {git = "https://gitlab.com/sbtg/psy-taliro", rev = "v1.0.0b6"}
 rtamt = {git = "https://github.com/nickovic/rtamt.git", rev = "c0fb9e6"}
 coverage = "^6.4.2"
+jmetalpy = "^1.5.5"
+deap = "^1.3.3"
+pymoo = "^0.6.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
