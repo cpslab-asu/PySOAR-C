@@ -17,7 +17,7 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, tf_dim, trust_region
     lower_bound_theta = np.ndarray.flatten(trust_region[:, 0])
     upper_bound_theta = np.ndarray.flatten(trust_region[:, 1])
     
-    random_samples = uniform_sampling(2000, trust_region, tf_dim, rng)
+    random_samples = uniform_sampling(1000, trust_region, tf_dim, rng)
     min_bo_val = EI_obj(random_samples)
 
     min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])

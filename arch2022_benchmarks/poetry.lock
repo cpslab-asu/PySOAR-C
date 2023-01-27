@@ -475,7 +475,7 @@ diagrams = ["railroad-diagrams", "jinja2"]
 
 [[package]]
 name = "pysoar"
-version = "0.1.1"
+version = "0.1.0"
 description = ""
 category = "main"
 optional = false

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pysoar"
-version = "0.1.1"
+version = "0.1.0"
 description = ""
 authors = ["Mina Jiang <XXXXX@asu.edu>"]
 

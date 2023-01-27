@@ -67,13 +67,13 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
         problem = FunctionalProblem(inpRanges.shape[0], objs, xl = lower_bound_theta, xu = upper_bound_theta)
         
         algorithm = NSGA2(
-            pop_size = 200,
+            pop_size = 50,
             sampling = FloatRandomSampling(),
             crossover = SBX(prob = 0.9, eta = 15),
             mutation = PM(eta=20),
             eliminate_duplicates = True
         )
-        res = minimize(problem, algorithm, ('n_gen', 200), seed = rng.integers(low = 1,high = 100000, size = 1)[0], verbose = False)
+        res = minimize(problem, algorithm, ('n_gen', 50), seed = rng.integers(low = 1,high = 100000, size = 1)[0], verbose = False)
         F = res.F
         X = res.X
         minNegEIindex = np.argmin(res.F[:,0])
