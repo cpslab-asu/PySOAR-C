@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, List, Sequence, Callable
+from attr import frozen
 
 import numpy as np
 from staliro.core import Interval, Optimizer, ObjectiveFn, Sample
@@ -7,7 +8,14 @@ from staliro.core import Interval, Optimizer, ObjectiveFn, Sample
 from ..coreAlgorithm import PySOAR
 
 Bounds = Sequence[Interval]
-PySOARResult = List[Any]
+
+@frozen(slots=True)
+class PySOARResult:
+
+    history: Any
+    modes: Any
+    simulation_times: Any
+
 
 @dataclass(frozen=True)
 class run_pysoar(Optimizer[PySOARResult]):
@@ -36,22 +44,24 @@ class run_pysoar(Optimizer[PySOARResult]):
         def test_function(sample: np.ndarray) -> float:
             return func.eval_sample(Sample(sample))
         
-        return PySOAR(n_0=self.n_0, 
-            nSamples=budget, 
-            trs_max_budget=self.trs_max_budget,
-            max_loc_iter=self.max_loc_iter,
-            inpRanges= region_support,
-            alpha_lvl_set=self.alpha_lvl_set, 
-            eta0=self.eta0, 
-            eta1=self.eta1, 
-            delta=self.delta, 
-            gamma=self.gamma, 
-            eps_tr=self.eps_tr, 
-            prob= test_function,
-            gpr_model=self.gpr_model,
-            seed = seed,
-            local_search=self.local_search,
-            folder_name=self.folder_name, 
-            benchmark_name=self.benchmark_name,
-            behavior=self.behavior
-        )
+        history, modes, sim_times = PySOAR(n_0=self.n_0, 
+                            nSamples=budget, 
+                            trs_max_budget=self.trs_max_budget,
+                            max_loc_iter=self.max_loc_iter,
+                            inpRanges= region_support,
+                            alpha_lvl_set=self.alpha_lvl_set, 
+                            eta0=self.eta0, 
+                            eta1=self.eta1, 
+                            delta=self.delta, 
+                            gamma=self.gamma, 
+                            eps_tr=self.eps_tr, 
+                            prob= test_function,
+                            gpr_model=self.gpr_model,
+                            seed = seed,
+                            local_search=self.local_search,
+                            folder_name=self.folder_name, 
+                            benchmark_name=self.benchmark_name,
+                            behavior=self.behavior
+                        )
+
+        return PySOARResult(history, modes, sim_times)

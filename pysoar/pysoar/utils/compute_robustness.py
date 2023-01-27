@@ -21,13 +21,13 @@ def compute_robustness(samples_in: npt.NDArray, mode:int, behavior:str, region, 
         samples_out = np.array([test_function(samples_in[0], mode, region)])
         if samples_out < 0 and behavior == "Falsification":
             falsified = True
-        print(f"{mode} --> {samples_out[0]}")
+        # print(f"{mode} --> {samples_out[0]}")
     else:
         samples_out = []
         for sample in samples_in:
             rob = test_function(sample, mode, region)
             samples_out.append(rob)
-            print(f"{mode} --> {rob}")
+            # print(f"{mode} --> {rob}")
             if rob < 0 and behavior == "Falsification":
                 falsified = True
                 break

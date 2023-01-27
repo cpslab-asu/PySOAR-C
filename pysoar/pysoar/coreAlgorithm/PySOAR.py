@@ -1,20 +1,11 @@
-"""
-
-"""
-
-
-
 from copy import deepcopy
 import numpy as np
-import math
 
-from ..trustRegion import local_gp_tr, gradient_based_tr, local_best_ei
+from ..trustRegion import local_best_ei
 from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd, pointsInTR
 from ..sampling import lhs_sampling, uniform_sampling
 from ..gprInterface import GPR
 
-from pyswarms.single import LocalBestPSO, GlobalBestPSO
-from pyswarm import pso
 
 import pathlib
 import time
@@ -29,7 +20,10 @@ from pymoo.problems.functional import FunctionalProblem
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
-from pymoo.visualization.scatter import Scatter
+# from pymoo.visualization.scatter import Scatter
+
+
+
 ##### v9 ####### add user defined parameters to input, break once falsified
 def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set, eta0, eta1, delta, gamma, eps_tr, prob, gpr_model, seed, local_search, folder_name, benchmark_name, behavior = "Minimization"):
     base_path = pathlib.Path()
@@ -55,8 +49,8 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
     y_train, falsified = compute_robustness(x_train, 0, behavior, inpRanges, tf_wrapper)
 
     if falsified:
-        with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-            pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
+        # with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
+        #     pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
         return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
 
     
@@ -65,10 +59,9 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
         gpr = GPR(deepcopy(gpr_model))
         gpr.fit(x_train, y_train)
 
-        # EI_obj = lambda x: -1 * EIcalc_kd(y_train, x, gpr)
+        
         lower_bound_theta = np.ndarray.flatten(inpRanges[:, 0])
         upper_bound_theta = np.ndarray.flatten(inpRanges[:, 1])
-        # CD_obj = lambda x: -1 * CrowdingDist_kd(x, x_train)
         
         objs = [lambda x: -1 * EIcalc_kd(y_train, x, gpr), lambda x: -1 * CrowdingDist_kd(x, x_train)]
         problem = FunctionalProblem(inpRanges.shape[0], objs, xl = lower_bound_theta, xu = upper_bound_theta)
@@ -92,7 +85,6 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
             
             if F[k,0] <= minNegEI * (1-alpha_lvl_set):
                 if F[k,1] < best_crowd:
-                    print(f"{F[k,0]} <= {minNegEI * (1-alpha_lvl_set)} -> {F[k,0] <= minNegEI * (1-alpha_lvl_set)} \\ {F[k,1]} < {best_crowd} -> {F[k,1] < best_crowd} \n{x0}\n*************************************************")
                     best_crowd = F[k,1]
                     x0 = X[k,:]
         
@@ -100,11 +92,12 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
         pred_sample_x = np.array([np.array(x0)])
         
         pred_sample_y, falsified = compute_robustness(pred_sample_x, 1, behavior, inpRanges, tf_wrapper)
-        # print(f"EI_cd = {opt_obj(new_params.x)}, Value = {pred_sample_y}")
+        
         if falsified:
-            with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-                pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
+            # with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
+            #     pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
             return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
+
         x_train = np.vstack((x_train, pred_sample_x))
         y_train = np.hstack((y_train, pred_sample_y))
         
@@ -113,13 +106,8 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
 
         # Initialize TR Bounds
         TR_Bounds = np.vstack(
-            [restart_point_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - restart_point_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 5]).flatten()
-        """
-        x = [[1,2]]
-        inpRanges = [[-6,0],[-6,6]]
-        min([7,8], [1,-4] [0.6, 1.2])
-
-        """
+            [restart_point_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - restart_point_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 10]).flatten()
+        
         
 
         TR_size = np.min(np.abs(TR_Bounds[TR_Bounds!=0]))
@@ -135,47 +123,50 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
         ####### Enter TR Meta Model Loop ######
         local_counter = 0
         
-        print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
+        
 
         if local_search == "gp_local_search":
-            print("LS")
+            
+            # print("LS")
+            
             while (local_counter < max_loc_iter 
-                    and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])
-                    and tf_wrapper.count + (max(max_loc_iter - num_points_present,0) + 1) <= nSamples):
+                     and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])
+                    and tf_wrapper.count + (max(trs_max_budget - num_points_present,0) + 1) < nSamples):
                 
-                
-                if trs_max_budget - num_points_present > 0:
+                if trs_max_budget - num_points_present-1 > 0:
+                    
                     num_samples_needed = trs_max_budget - num_points_present
-                    print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
+                    
                     # draw a new lhs over the current TR
                     x0_local = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
                     y0_local, falsified = compute_robustness(x0_local, 2, behavior, trust_region, tf_wrapper)
                     if falsified:
-                        with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-                            pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
+                        
                         return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
-
+                    
                     x_train = np.vstack((x_train, x0_local))
                     y_train = np.hstack((y_train, y0_local))
 
                     x_train_subset = np.vstack((x_train_subset, x0_local))
                     y_train_subset = np.hstack((y_train_subset, y0_local))
-                
+                    
                 # Fit Gaussian Process Meta Model Locally
                 
                 xk, fk, rho, falsified = local_best_ei(restart_point_x, restart_point_y, tf_wrapper, tf_dim, trust_region, x_train_subset, y_train_subset, behavior, gpr_model, rng)
+                print(xk, fk)
                 if falsified:
-                    with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-                        pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
+                    # with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
+                    #     pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
                     return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
                 x_train = np.vstack((x_train, xk))
                 y_train = np.hstack((y_train, fk))
 
                 x_train_subset = np.vstack((x_train_subset, xk))
                 y_train_subset = np.hstack((y_train_subset, fk))
+                
                 # print(xk, fk, rho, falsified)
                 
-                # """ What the use of this?
+                
                 max_indicator = np.max(np.abs(xk - restart_point_x)) / TR_size
                 test = rng.random()
                 if max_indicator < test:
@@ -219,11 +210,11 @@ def PySOAR(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set
                 local_counter += 1
                 x_train_subset, y_train_subset = pointsInTR(x_train, y_train, trust_region)
                 num_points_present = x_train_subset.shape[0]
-                print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
+                
                 
                 # check if budget has been exhausted
 
-    with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-        pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
-
+    # with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
+    #     pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
+    print(f"{tf_wrapper.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
     return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
