@@ -122,6 +122,34 @@ class HA:
         
         return rob
 
+    def get_cost(self, init_point):
+        time, traj = self._generate_traj(init_point)   
+        traj = traj.T
+        # print(traj.shape)
+        # print(time.shape)
+        phi_1_x = "x_pos <= -1.4 and x_pos >= -1.8"
+        phi_1_y = "y_pos <= -1.4 and y_pos >= -1.6"
+        phi_1 = f"({phi_1_x}) and ({phi_1_y})"
+
+
+        phi_2_x = "x_pos <= 4.1 and x_pos >= 3.7"
+        phi_2_y = "y_pos <= -1.4 and y_pos >= -1.6"
+        phi_2 = f"({phi_2_x}) and ({phi_2_y})"
+
+        phi = f"G[0,2] (not ({phi_1})) and (not ({phi_2}))"
+        specification = RTAMTDense(phi, {"x_pos" : 0, "y_pos": 1})
+        rob = specification.evaluate(traj, time)
+
+
+        # phi_unsafe_x = "x_pos <= 0.95 and x_pos >= 0.85"
+        # phi_unsafe_y = "y_pos <= 0.95 and y_pos >= 0.85"
+        # phi_unsafe = f"G[0,2] (not (({phi_unsafe_x}) and ({phi_unsafe_y})))"
+        # specification_unsafe = RTAMTDense(phi_unsafe, {"x_pos": 0, "y_pos": 1})
+        # dist_1 = specification_unsafe.evaluate(traj, time)
+        dist_2 = self.yellow_polygon_def.distance(Point(init_point))
+
+        return (max(0,dist_2), rob)
+        
     def _set_1_f(self, y, t):
         x1, x2 = y
         derivs = [x1 - x2 + 0.1*t,

@@ -742,7 +742,7 @@ docs = ["sphinx", "nbconvert", "jupyter-client", "ipykernel", "matplotlib", "nbf
 
 [[package]]
 name = "tenacity"
-version = "8.2.0"
+version = "8.2.1"
 description = "Retry code until it succeeds"
 category = "main"
 optional = false

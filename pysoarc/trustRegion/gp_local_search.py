@@ -8,7 +8,7 @@ import numpy as np
 import math
 from scipy.optimize import minimize
 
-def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, tf_dim, trust_region, xTrain_local, yTrain_local, behavior, gpr_model, rng):
+def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, test_fn, tf_dim, trust_region, xTrain_local, yTrain_local, behavior, gpr_model, rng):
     # Fit Gaussian Process Meta Model Locally
     gpr = GPR(deepcopy(gpr_model))
     gpr.fit(xTrain_local, yTrain_local)
@@ -41,8 +41,12 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, tf_dim, trust_region
     )
     xk = np.array([np.array(new_params.x)])
     
-    rob, fk, falsified = compute_robustness(xk, 3, behavior, trust_region, tf_wrapper)
-    
-    rho = (pred_sample_y[0,1] - fk[0,1]) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
+    rob = tf_wrapper(xk, test_fn, behavior)
+    # print(pred_sample_y[0][0])
+    # print(rob[0][0])
+    # print(gpr.predict(pred_sample_x)[0])
+    # print(gpr.predict(xk)[0])
+    rho = (pred_sample_y[0][0] - rob[0][0]) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
 
-    return xk, rob, fk, rho[0], falsified
+    return xk, rob, rho[0]
+    

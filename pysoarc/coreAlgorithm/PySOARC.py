@@ -1,28 +1,15 @@
-"""
-
-"""
-
-
-
-from copy import deepcopy
-import numpy as np
-import math
-
-from ..trustRegion import local_gp_tr, gradient_based_tr, local_best_ei
-from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd, pointsInTR
-from ..sampling import lhs_sampling, uniform_sampling
-from ..gprInterface import GPR
-
-from pyswarms.single import LocalBestPSO, GlobalBestPSO
-from pyswarm import pso
-
 import pathlib
 import time
 import pickle
-from scipy.optimize import minimize
-from scipy.stats import norm
-from scipy.optimize import NonlinearConstraint
+import math
+import logging
+import enum
+from copy import deepcopy
+from dataclasses import dataclass
+from typing import Any, Callable, Literal
 
+import numpy as np
+from numpy.typing import ArrayLike, NDArray
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.optimize import minimize
 from pymoo.problems.functional import FunctionalProblem
@@ -30,159 +17,323 @@ from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.visualization.scatter import Scatter
-##### v9 ####### add user defined parameters to input, break once falsified
-def PySOARC(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_set, eta0, eta1, delta, gamma, eps_tr, prob, gpr_model, seed, local_search, folder_name, benchmark_name, behavior = "Minimization"):
-    base_path = pathlib.Path()
-    results_directory = base_path.joinpath(folder_name)
-    results_directory.mkdir(exist_ok=True)
+from pyswarms.single import LocalBestPSO, GlobalBestPSO
+from pyswarm import pso
+# from scipy.optimize import minimize
+from scipy.stats import norm
+from scipy.optimize import NonlinearConstraint
 
-    benchmark_directory = results_directory.joinpath(benchmark_name)
-    benchmark_directory.mkdir(exist_ok=True)
+from ..trustRegion import local_gp_tr, gradient_based_tr, local_best_ei
+from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd, pointsInTR
+from ..sampling import lhs_sampling, uniform_sampling
+from ..gprInterface import GPR, GaussianProcessRegressor
 
+_logger = logging.getLogger("PySOAR-C")
+
+class Behavior(enum.IntEnum):
+    """Behavior when falsifying case for system is encountered.
+
+    Attributes:
+        FALSIFICATION: Stop searching when the first falsifying case is encountered
+        MINIMIZATION: Continue searching after encountering a falsifying case until iteration
+                      budget is exhausted
+    """
+
+    FALSIFICATION = enum.auto()
+    MINIMIZATION = enum.auto()
+
+
+
+@dataclass(frozen=True)
+class LocalBest:
+    local_best_x: Any
+    local_best_y: Any
+
+@dataclass(frozen=True)
+class LocalPhase:
+    region_support: Any
+    local_phase_x: Any
+    local_phase_y: Any
     
 
-    start_t = time.time()
+@dataclass(frozen=True)
+class GlobalPhase:
+    restart_point_x: Any
+    restart_point_y: Any
+    
+    
+
+@dataclass(frozen=True)
+class InitializationPhase:
+    initial_samples_x: NDArray[np.double]
+    initial_samples_y: NDArray[np.double]
+
+def _generate_dataset(output_type: int, *args):
+    if output_type not in [0,1]:
+        raise ValueError
+    
+    
+    if type(args[0][0]) == InitializationPhase:
+        x_train = args[0][0].initial_samples_x
+        y_train = args[0][0].initial_samples_y[:,output_type]
+    else:
+        raise ValueError
+
+    for arg in args[0][1:]:
+        if type(arg) == GlobalPhase:
+            x_train = np.vstack((x_train, arg.restart_point_x))
+            y_train = np.hstack((y_train, arg.restart_point_y[:,output_type]))
+        elif type(arg) == LocalPhase:
+            x_train = np.vstack((x_train, arg.local_phase_x))
+            y_train = np.hstack((y_train, arg.local_phase_y[:,output_type]))
+        elif type(arg) == LocalBest:
+            x_train = np.vstack((x_train, arg.local_best_x))
+            y_train = np.hstack((y_train, arg.local_best_y[:,output_type]))
+    
+    return x_train, y_train
+
+
+# def _global_pt_region(pt: Any) -> Region:
+#     pass
+
+
+# def _local_pt_region(pt: Any) -> Region:
+#     pass
+
+
+# def _region_local_pt(region: Region) -> Any:
+#     pass
+
+
+def _is_falsification(evaluation: NDArray) -> bool:
+    return evaluation[0] == 0 and evaluation[1] < 0
+
+
+class Fn:
+    def __init__(self, func):
+        self.func = func
+        self.count = 0
+
+    def __call__(self, *arg):
+        self.count = self.count + 1
+        
+        hybrid_dist = self.func(*arg)
+        print(self.count, arg[0], hybrid_dist)
+        
+        return hybrid_dist
+
+def _evaluate_samples(
+                samples: NDArray[np.double], 
+                fn: Callable[[NDArray[np.double]], NDArray[np.double]],
+                behavior: Behavior
+) -> NDArray:
+
+    evaluations = []
+
+    for sample in samples:
+        evaluation = np.array(fn(sample), dtype=np.double)
+        evaluations.append(evaluation)
+
+        if _is_falsification(evaluation) and (behavior is Behavior.FALSIFICATION):
+            break
+
+    return np.array(evaluations)
+
+
+##### v9 ####### add user defined parameters to input, break once falsified
+def PySOARC(
+    n_0: int,
+    nSamples: int,
+    trs_max_budget: int,
+    max_loc_iter: int,
+    inpRanges: ArrayLike, 
+    alpha_lvl_set: float,
+    eta0: float,
+    eta1: float,
+    delta: float,
+    gamma: float,
+    eps_tr: float,
+    test_fn: Callable[[NDArray[np.double]], NDArray[np.double]],
+    gpr_model: GaussianProcessRegressor, 
+    seed: int, 
+    local_search: str, 
+    behavior: Behavior = Behavior.FALSIFICATION
+):
+    inpRanges = np.array(inpRanges)
+    test_fn = Fn(test_fn)
+    if inpRanges.ndim != 2:
+        raise ValueError("input ranges should be 2-dimensional")
+
+    if inpRanges.shape[1] != 2:
+        raise ValueError("input range 2nd dimension should be equal to 2")
+
     rng = np.random.default_rng(seed)
     np.random.seed(seed+1000)
 
     tf_dim = inpRanges.shape[0]
-    tf_wrapper = Fn(prob)
-    falsified = False
     if n_0 > nSamples:
         raise ValueError(f"Received n_0({n_0}) > nSamples ({nSamples}): Initial samples (n_0) cannot be greater than Maximum Evaluations Budget (nSamples)")
 
-    x_train = lhs_sampling(n_0, inpRanges, tf_dim, rng)
-    x_train_hd = x_train
-    y_train, y_train_hd, falsified = compute_robustness(x_train, 0, behavior, inpRanges, tf_wrapper)
-
-    if falsified:
-        # with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-        #     pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
-        return (tf_wrapper.point_history, tf_wrapper.modes, time.time() - start_t)
+    initial_samples = lhs_sampling(n_0, inpRanges, tf_dim, rng)
+    # inital_samples_hd = initial_samples
+    initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
+    
+    initial_points = InitializationPhase(
+                        initial_samples_x = initial_samples,
+                        initial_samples_y = initial_sample_distances
+                    )
+    algo_journey = [initial_points]
+    if any(_is_falsification(sd) for sd in initial_sample_distances) and (behavior is Behavior.FALSIFICATION):
+        # TODO: Create return structure
+        return algo_journey
 
     
-    while (tf_wrapper.count < nSamples) and (not falsified):
-        print(f"{tf_wrapper.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
+    
+    
+
+    while test_fn.count < nSamples:
+        # print(f"{test_fn.count} Evaluations completed -> {initial_points.initial_samples_x.shape}, {initial_points.initial_samples_y.shape}")
+        
+        x_train, y_train = _generate_dataset(1, algo_journey)
+        print(f"{test_fn.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
         gpr = GPR(deepcopy(gpr_model))
         gpr.fit(x_train, y_train)
 
-        # EI_obj = lambda x: -1 * EIcalc_kd(y_train, x, gpr)
         lower_bound_theta = np.ndarray.flatten(inpRanges[:, 0])
         upper_bound_theta = np.ndarray.flatten(inpRanges[:, 1])
-        # CD_obj = lambda x: -1 * CrowdingDist_kd(x, x_train)
         
-        objs = [lambda x: -1 * EIcalc_kd(y_train, x, gpr), lambda x: -1 * CrowdingDist_kd(x, x_train)]
-        problem = FunctionalProblem(inpRanges.shape[0], objs, xl = lower_bound_theta, xu = upper_bound_theta)
+        problem = FunctionalProblem(
+            n_var=inpRanges.shape[0],
+            objs=[
+                lambda x: -1 * EIcalc_kd(y_train, x, gpr),
+                lambda x: -1 * CrowdingDist_kd(x, x_train)
+            ],
+            xl=lower_bound_theta,
+            xu=upper_bound_theta
+        )
         
         algorithm = NSGA2(
-            pop_size = 150,
-            sampling = FloatRandomSampling(),
-            crossover = SBX(prob = 0.9, eta = 15),
-            mutation = PM(eta=20),
-            eliminate_duplicates = True
+            pop_size=150,
+            sampling=FloatRandomSampling(),
+            crossover=SBX(prob = 0.9, eta = 15),
+            mutation=PM(eta=20),
+            eliminate_duplicates=True
         )
-        res = minimize(problem, algorithm, ('n_gen', 200), seed = rng.integers(low = 1,high = 100000, size = 1)[0], verbose = False)
-        F = res.F
-        X = res.X
-        minNegEIindex = np.argmin(res.F[:,0])
-        minNegEI = F[minNegEIindex, 0]
-        x0 = X[minNegEIindex]
-        best_crowd = float("inf")
-        
-        for k in range(F.shape[0]):
-            
-            if F[k,0] <= minNegEI * (1-alpha_lvl_set):
-                if F[k,1] < best_crowd:
-                    print(f"{F[k,0]} <= {minNegEI * (1-alpha_lvl_set)} -> {F[k,0] <= minNegEI * (1-alpha_lvl_set)} \\ {F[k,1]} < {best_crowd} -> {F[k,1] < best_crowd} \n{x0}\n*************************************************")
-                    best_crowd = F[k,1]
-                    x0 = X[k,:]
-        
-        
-        pred_sample_x = np.array([np.array(x0)])
-        
-        pred_sample_y, pred_sample_hd, falsified = compute_robustness(pred_sample_x, 1, behavior, inpRanges, tf_wrapper)
-        # print(f"EI_cd = {opt_obj(new_params.x)}, Value = {pred_sample_y}")
-        if falsified:
-            return (tf_wrapper.point_history, tf_wrapper.modes, time.time() - start_t)
-        x_train = np.vstack((x_train, pred_sample_x))
-        y_train = np.hstack((y_train, pred_sample_y))
 
-        x_train_hd = np.vstack((x_train_hd, pred_sample_x))
-        y_train_hd = np.vstack((y_train_hd, pred_sample_hd))
-        ######### LOCAL SEARCH PHASE ###########
-        restart_point_x, restart_point_y = deepcopy(pred_sample_x), deepcopy(pred_sample_hd)
-
-        # Initialize TR Bounds
+        ga_seed = rng.integers(low=1, high=100000, size=1)
+        ga_result = minimize(
+            problem = problem, 
+            algorithm = algorithm, 
+            termination = ('n_gen', 200), 
+            seed = ga_seed[0], 
+            verbose = False
+        )
+                    
+        minNegEIindex = np.argmin(ga_result.F[:,0])
+        minNegEI = ga_result.F[minNegEIindex, 0]
+        global_rp_x = ga_result.X[minNegEIindex]
+        best_crowd = math.inf
+        
+        for k in range(ga_result.F.shape[0]):
+            if ga_result.F[k, 0] <= minNegEI * (1 - alpha_lvl_set):
+                if ga_result.F[k, 1] < best_crowd:
+                    _logger.debug(f"{ga_result.F[k, 0]} <= {minNegEI * (1-alpha_lvl_set)} -> {ga_result.F[k,0] <= minNegEI * (1-alpha_lvl_set)} \\ {ga_result.F[k,1]} < {best_crowd} -> {ga_result.F[k,1] < best_crowd} \n{global_rp_x}\n*************************************************")
+                    best_crowd = ga_result.F[k, 1]
+                    global_rp_x = ga_result.X[k, :]
+        global_rp_x = np.array([global_rp_x])
+        global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
+        algo_journey.append(GlobalPhase(global_rp_x, global_rp_y))
+        
+        if _is_falsification(global_rp_y[0]) and (behavior is Behavior.FALSIFICATION):
+            # TODO
+            return algo_journey
+        
+        local_sample_x, local_samples_y = _generate_dataset(0, algo_journey)
+        print(local_sample_x.shape, test_fn.count)
         TR_Bounds = np.vstack(
-            [restart_point_x[0,:] - inpRanges[:, 0], inpRanges[:, 1] - restart_point_x[0,:], (inpRanges[:, 1] - inpRanges[:, 0]) / 5]).flatten()
-        """
-        x = [[1,2]]
-        inpRanges = [[-6,0],[-6,6]]
-        min([7,8], [1,-4] [0.6, 1.2])
+            [    global_rp_x[0,:]- inpRanges[:, 0], 
+                inpRanges[:, 1] - global_rp_x[0,:], 
+                (inpRanges[:, 1] - inpRanges[:, 0]) / 10
+            ]
+        ).flatten()
 
-        """
         
-
-        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds!=0]))
+        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds>0.05]))
         
         trust_region = np.empty((inpRanges.shape))
         for d in range(tf_dim): 
-            trust_region[d, 0] = max(restart_point_x[0,d] - TR_size, inpRanges[d,0])
-            trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
-
+            trust_region[d, 0] = max(global_rp_x[0,d] - TR_size, inpRanges[d,0])
+            trust_region[d, 1] = min(global_rp_x[0,d] + TR_size, inpRanges[d,1])
+        # print("**************************")
+        # print(TR_Bounds)
+        # print(TR_size)
+        # print(global_rp_x)
+        # print(trust_region)
+        # print(fdvbrggrs)
+        local_sample_x_subset, local_sample_y_subset = pointsInTR(local_sample_x, local_samples_y, trust_region)
+        num_points_present = local_sample_x_subset.shape[0]
         
-        x_train_subset, y_train_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
-        num_points_present = x_train_subset.shape[0]
-        ####### Enter TR Meta Model Loop ######
         local_counter = 0
-        print(x_train_subset.shape)
-        print(y_train_subset.shape)
-        print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
-
+        restart_point_x, restart_point_y = deepcopy(global_rp_x), deepcopy(global_rp_y)
+        # print(trust_region)
+        # print(inpRanges)
+        # print("**************")
         if local_search == "gp_local_search":
             print("LS")
             while (local_counter < max_loc_iter 
                     and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])
-                    and tf_wrapper.count + (max(max_loc_iter - num_points_present,0) + 1) <= nSamples):
+                    and test_fn.count + (max(trs_max_budget - num_points_present,0) + 1) < nSamples):
                 
-                
+                # print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
                 if trs_max_budget - num_points_present > 0:
                     num_samples_needed = trs_max_budget - num_points_present
                     print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
-                    # draw a new lhs over the current TR
-                    x0_local = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
-                    _, y0_local_hd, falsified = compute_robustness(x0_local, 2, behavior, trust_region, tf_wrapper)
-                    if falsified:
-                        return (tf_wrapper.point_history, tf_wrapper.modes, time.time() - start_t)
-
-                    # x_train = np.vstack((x_train, x0_local))
-                    # y_train = np.hstack((y_train, y0_local))
-
-                    x_train_hd = np.vstack((x_train_hd, x0_local))
-                    y_train_hd = np.vstack((y_train_hd, y0_local_hd))
                     
-                    x_train_subset = np.vstack((x_train_subset, x0_local))
-                    y_train_subset = np.vstack((y_train_subset, y0_local_hd))
+                    local_additional_x = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
+                    local_additional_y = _evaluate_samples(local_additional_x, test_fn, behavior)
+                    # print(local_additional_x)
+                    # print(trust_region)
+                    # local_x = np.vstack((x_train, local_additional_x))
+                    # local_y = np.hstack((y_train, local_additional_y))
+
+                    algo_journey.append(LocalPhase(trust_region, local_additional_x, local_additional_y))
+                    
+                    if _is_falsification(local_additional_y[0]) and (behavior is Behavior.FALSIFICATION):
+                        # TODO
+                        return algo_journey
+                    
+
+                    
+                # print(algo_journey)
+                x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
+                local_sample_x_subset, local_sample_y_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
                 
                 # Fit Gaussian Process Meta Model Locally
                 
-                xk, rob, fk, rho, falsified = local_best_ei(restart_point_x, restart_point_y, tf_wrapper, tf_dim, trust_region, x_train_subset, y_train_subset[:,1], behavior, gpr_model, rng)
-                if falsified:
-                    with open(benchmark_directory.joinpath(f"{benchmark_name}_seed_{seed}.pkl"), "wb") as f:
-                        pickle.dump((tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time), f)
-                    return (tf_wrapper.point_history, tf_wrapper.modes, tf_wrapper.simultation_time)
-                x_train = np.vstack((x_train, xk))
-                y_train = np.hstack((y_train, rob))
+                local_best_x, local_best_y, rho = local_best_ei(
+                                                    restart_point_x, 
+                                                    restart_point_y, 
+                                                    _evaluate_samples,
+                                                    test_fn, 
+                                                    tf_dim, 
+                                                    trust_region, 
+                                                    local_sample_x_subset, 
+                                                    local_sample_y_subset, 
+                                                    behavior, 
+                                                    gpr_model, 
+                                                    rng
+                )
+                algo_journey.append(LocalBest(local_best_x, local_best_y))
+                    
+                if _is_falsification(local_best_y[0]) and (behavior is Behavior.FALSIFICATION):
+                    # TODO
+                    return algo_journey
 
-                x_train_hd = np.vstack((x_train_hd, xk))
-                y_train_hd = np.vstack((y_train_hd, fk))
-
-                x_train_subset = np.vstack((x_train_subset, xk))
-                y_train_subset = np.vstack((y_train_subset, fk))
+                # x_train_hd, y_train_hd = _generate_dataset(algo_journey, 0)
                 # print(xk, fk, rho, falsified)
                 
                 # """ What the use of this?
-                max_indicator = np.max(np.abs(xk - restart_point_x)) / TR_size
+                max_indicator = np.max(np.abs(local_best_x - restart_point_x)) / TR_size
                 test = rng.random()
                 if max_indicator < test:
                     break
@@ -199,11 +350,11 @@ def PySOARC(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_se
                 else:
                     if eta0 < rho < eta1:
                         # low pass of RC test
-                        restart_point_x = xk
-                        restart_point_y = fk
+                        restart_point_x = local_best_x
+                        restart_point_y = local_best_y
                         
                         valid_bound = np.array([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size]).flatten()
-                        TR_size = np.min(valid_bound[valid_bound!=0])
+                        TR_size = np.min(valid_bound[valid_bound>=0.05])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 
@@ -211,11 +362,11 @@ def PySOARC(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_se
                             trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
                     else:
                         # high pass of RC test
-                        restart_point_x = xk
-                        restart_point_y = fk
+                        restart_point_x = local_best_x
+                        restart_point_y = local_best_y
                         valid_bound = np.array([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size*gamma]).flatten()
                         # TR_size *= gamma
-                        TR_size = np.min(valid_bound[valid_bound!=0])
+                        TR_size = np.min(valid_bound[valid_bound>=0.05])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 
@@ -223,12 +374,13 @@ def PySOARC(n_0, nSamples, trs_max_budget, max_loc_iter, inpRanges, alpha_lvl_se
                             trust_region[d, 1] = min(restart_point_x[0,d] + TR_size, inpRanges[d,1])
 
                 local_counter += 1
+                x_train_hd, y_train_hd = _generate_dataset(0,algo_journey)
+
+                local_sample_x_subset, local_sample_y_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
+                num_points_present = local_sample_x_subset.shape[0]
                 
-                x_train_subset, y_train_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
-                
-                num_points_present = x_train_subset.shape[0]
-                print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
+                _logger.debug(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
                 
                 # check if budget has been exhausted
 
-    return (tf_wrapper.point_history, tf_wrapper.modes, time.time() - start_t)
+    return algo_journey

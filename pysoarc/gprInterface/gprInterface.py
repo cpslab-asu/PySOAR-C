@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class GaussianProcessRegressorStructure(ABC):
+class GaussianProcessRegressor(ABC):
     @abstractmethod
     def __init__(self):
         raise NotImplementedError

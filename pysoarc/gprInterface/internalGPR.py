@@ -1,6 +1,5 @@
-from .gprInterface import GaussianProcessRegressorStructure
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import Matern, ConstantKernel, RBF, WhiteKernel
+from .gprInterface import GaussianProcessRegressor
+from sklearn import gaussian_process as sk_gp
 from scipy.optimize import fmin_l_bfgs_b
 from sklearn.preprocessing import StandardScaler
 from warnings import catch_warnings
@@ -16,10 +15,10 @@ def optimizer_lbfgs_b(obj_func, initial_theta):
     return params[0], params[1]
 
 
-class InternalGPR(GaussianProcessRegressorStructure):
+class InternalGPR(GaussianProcessRegressor):
     def __init__(self, random_state = 12345):
-        self.gpr_model = GaussianProcessRegressor(
-            kernel=Matern(nu=2.5), alpha=1e-6, normalize_y=True, n_restarts_optimizer=5, random_state = random_state
+        self.gpr_model = sk_gp.GaussianProcessRegressor(
+            kernel=sk_gp.kernels.Matern(nu=2.5), alpha=1e-6, normalize_y=True, n_restarts_optimizer=5, random_state = random_state
         )
         self.scale = StandardScaler()
 

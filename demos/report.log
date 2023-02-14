@@ -1,3 +1,195 @@
 2023-02-08 09:14:07,626 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
 2023-02-08 09:14:07,626 - polytope.solvers - INFO - MOSEK solver not found.
 2023-02-08 09:14:07,626 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:33:31,347 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:33:31,347 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:33:31,347 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:35:56,310 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:35:56,310 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:35:56,310 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:38:08,649 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:38:08,649 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:38:08,649 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:42:48,172 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:42:48,172 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:42:48,172 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:57:00,379 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:57:00,379 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:57:00,379 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:57:46,123 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:57:46,123 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:57:46,123 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:58:03,809 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:58:03,809 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:58:03,809 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:58:28,607 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:58:28,608 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:58:28,608 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:58:58,114 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:58:58,114 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:58:58,114 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 11:59:34,909 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 11:59:34,909 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 11:59:34,909 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:00:06,519 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:00:06,519 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:00:06,519 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:00:40,070 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:00:40,071 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:00:40,071 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:01:32,328 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:01:32,328 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:01:32,328 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:01:49,501 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:01:49,501 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:01:49,501 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:02:32,684 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:02:32,684 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:02:32,684 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:02:44,460 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:02:44,460 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:02:44,460 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:03:11,711 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:03:11,711 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:03:11,712 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:03:22,278 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:03:22,278 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:03:22,278 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:04:07,441 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:04:07,441 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:04:07,441 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:05:35,268 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:05:35,268 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:05:35,268 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:06:42,685 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:06:42,686 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:06:42,686 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:07:38,647 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:07:38,648 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:07:38,648 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:09:20,383 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:09:20,383 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:09:20,383 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:09:51,875 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:09:51,875 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:09:51,875 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:14:30,676 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:14:30,676 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:14:30,676 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:16:28,389 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:16:28,389 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:16:28,389 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:16:53,533 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:16:53,534 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:16:53,534 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:20:53,810 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:20:53,810 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:20:53,810 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:22:07,767 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:22:07,767 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:22:07,767 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:23:28,397 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:23:28,397 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:23:28,397 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:28:32,560 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:28:32,560 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:28:32,560 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:30:10,218 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:30:10,218 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:30:10,218 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:44:57,162 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:44:57,162 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:44:57,163 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:48:31,695 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:48:31,696 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:48:31,696 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:51:00,203 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:51:00,204 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:51:00,204 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:52:36,918 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:52:36,918 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:52:36,918 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:55:07,451 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:55:07,451 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:55:07,451 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:57:21,520 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:57:21,520 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:57:21,520 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 12:59:07,835 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 12:59:07,835 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 12:59:07,835 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:00:08,331 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:00:08,331 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:00:08,331 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:01:19,345 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:01:19,345 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:01:19,345 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:03:34,738 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:03:34,739 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:03:34,739 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:05:53,254 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:05:53,254 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:05:53,254 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:16:20,149 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:16:20,149 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:16:20,149 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:19:24,936 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:19:24,937 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:19:24,937 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 13:22:26,256 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 13:22:26,256 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 13:22:26,256 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:12:50,883 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:12:50,883 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:12:50,883 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:15:15,139 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:15:15,139 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:15:15,139 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:16:27,063 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:16:27,064 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:16:27,064 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:18:02,312 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:18:02,312 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:18:02,312 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:19:22,717 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:19:22,717 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:19:22,717 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 15:28:46,296 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 15:28:46,296 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 15:28:46,296 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 17:25:37,100 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 17:25:37,100 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 17:25:37,100 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 17:31:30,396 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 17:31:30,396 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 17:31:30,396 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 17:34:42,174 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 17:34:42,174 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 17:34:42,174 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-10 17:42:09,060 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-10 17:42:09,060 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-10 17:42:09,060 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:26:36,543 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:26:36,544 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:26:36,544 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:28:29,133 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:28:29,134 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:28:29,134 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:33:20,764 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:33:20,765 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:33:20,765 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:35:57,895 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:35:57,896 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:35:57,896 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:42:14,587 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:42:14,587 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:42:14,587 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:44:55,293 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:44:55,293 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:44:55,293 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:49:16,390 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:49:16,390 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:49:16,390 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`
+2023-02-11 02:52:48,607 - polytope.solvers - WARNING - `polytope` failed to import `cvxopt.glpk`.
+2023-02-11 02:52:48,607 - polytope.solvers - INFO - MOSEK solver not found.
+2023-02-11 02:52:48,607 - polytope.solvers - WARNING - will use `scipy.optimize.linprog`

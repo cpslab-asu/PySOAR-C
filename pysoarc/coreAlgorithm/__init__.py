@@ -1,4 +1,3 @@
-from .PySOARC import PySOARC
-from .PySOAR_timed import PySOAR_Timed
+from .PySOARC import PySOARC, Behavior
 
-__all__ = ["PySOARC", 'PySOAR_Timed']
+__all__ = ["PySOARC", 'Behavior']

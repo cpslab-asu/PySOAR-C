@@ -9,6 +9,8 @@ from staliro.staliro import staliro
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
 
+from pysoarc.coreAlgorithm import Behavior
+
 # from pysoar.coreAlgorithm import PySOAR_Timed
 from pysoarc import PySOARC
 # from test_functions import Himmelblau_2d
@@ -27,13 +29,14 @@ benchmark = "Himmelblaus"
 #     # return (X[0]**2 + X[1] - 11)**2 + (X[1]**2 + X[0] - 7)**2 - 40 
     
 from ha_tf import HA
+
 ha = HA()
 
-MAX_BUDGET = 250
+MAX_BUDGET = 32
 NUMBER_OF_MACRO_REPLICATIONS = 1
-trs_max_budget = 10
+trs_max_budget = 15
 
-point_history, modes, simultation_time  = PySOARC(
+point_history  = PySOARC(
     n_0= 20,
     nSamples = MAX_BUDGET,
     trs_max_budget = trs_max_budget,
@@ -45,13 +48,11 @@ point_history, modes, simultation_time  = PySOARC(
     delta = .75,
     gamma = 1.25,
     eps_tr = 0.01,
-    prob = ha,
+    test_fn = ha.get_cost,
     gpr_model = InternalGPR(),
     seed = 1234567,
     local_search= "gp_local_search",
-    folder_name= results_folder,
-    benchmark_name= f"{benchmark}_budget_{MAX_BUDGET}_{trs_max_budget}_maxtrs",
-    behavior = "Minimization"
+    behavior = Behavior.MINIMIZATION
     )
 
 # import pickle
@@ -60,14 +61,6 @@ point_history, modes, simultation_time  = PySOARC(
 # with open("NonLinearFunction_mo/Himmelblaus_budget_250_10_maxtrs/Himmelblaus_budget_250_10_maxtrs_seed_1234567.pkl", "rb") as f:
 
 
-point_history = np.array(point_history, dtype = object)
-distinction = np.array(point_history[:,2])
-modes = np.array(point_history[:,3])
-regions = np.array(point_history[:,4])
-
-print(point_history.shape)
-# subset_1 = point_history[modes == 0, :]
-# print(np.array(subset_1[:,1]))
 
 
 from matplotlib import pyplot as plt
@@ -113,55 +106,106 @@ ax = fig.add_subplot(111)
 #                                     fc ='green',
 #                                     alpha = 0.1))
 
-global_handles = []
-local_handles = []
-for i in np.unique(distinction):
-    # print(distinction == i)
 
-    subset_1 = point_history[np.logical_and(np.logical_or(modes == 1, modes == 3), distinction == i), :]
-    # subset_1 = point_history[distinction == i, :]
+from pysoarc.coreAlgorithm.PySOARC import GlobalPhase, LocalPhase, LocalBest, InitializationPhase
+point_streak = []
+p1_handles = []
+p2_handles = []
+p3_handles = []
+p4_handles = []
 
-    if subset_1.shape[0] != 0:
-        all_points = np.stack(subset_1[:,1])
-        ax.plot(all_points[:,0], all_points[:,1], markersize = 0.1)
-        for itera,p in enumerate(subset_1):
-            points = p[1]
-            region = p[4]
-            # print(points)
-            # print(region)
-            x = region[0,0]
-            y = region[1,0]
-            w = region[0,1] - region[0,0]
-            h = region[1,1] - region[1,0]
+for point_types in point_history:
+    
+    if type(point_types) is InitializationPhase:
+        p1, = ax.plot(
+            point_types.initial_samples_x[:,0], 
+            point_types.initial_samples_x[:,1],
+            'b*', 
+            markersize = 7, 
+            label = "Initial Points"
+        )
+        p1_handles.append(p1)
+    elif type(point_types) is GlobalPhase:
+        p2, = ax.plot(
+            point_types.restart_point_x[:,0], 
+            point_types.restart_point_x[:,1],
+            'k*', 
+            markersize = 7, 
+            label = "Global Points"
+        )
+        p2_handles.append(p2)
+    elif type(point_types) == LocalPhase:
+        p3, = ax.plot(
+            point_types.local_phase_x[:,0], 
+            point_types.local_phase_x[:,1],
+            'b.', 
+            markersize = 7, 
+            label = "Local Points"
+        )
+        p3_handles.append(p3)
+    elif type(point_types) == LocalBest:
+        p4, = ax.plot(
+            point_types.local_best_x[:,0], 
+            point_types.local_best_x[:,1],
+            'k.', 
+            markersize = 7, 
+            label = "Local Points"
+        )
+        p4_handles.append(p4)
+    
+ax.legend([p1_handles[0],p2_handles[0], p3_handles[0], p4_handles[0]], 
+            ["Initial Points", "Global Points", "Local Points", "Local Best"])
+plt.savefig('pysoarc_samples.pdf') 
 
-            if itera == 0:
-                p1, = ax.plot(points[0], points[1], 'k*', markersize = 7, label = "Global Points")
-                # ax.annotate(f"{i}-{itera}",xy=(points[0]+0.001, points[1]+0.001))
-                global_handles.append(p1)
-            else:
-                p2, = ax.plot(points[0], points[1], 'b.', markersize = 4, label = "Local Points")
-                local_handles.append(p2)
+
+# global_handles = []
+# local_handles = []
+# # for i in np.unique(distinction):
+# #     # print(distinction == i)
+
+# #     subset_1 = point_history[np.logical_and(np.logical_or(modes == 1, modes == 3), distinction == i), :]
+# #     # subset_1 = point_history[distinction == i, :]
+
+# #     if subset_1.shape[0] != 0:
+# #         all_points = np.stack(subset_1[:,1])
+# #         ax.plot(all_points[:,0], all_points[:,1], markersize = 0.1)
+# #         for itera,p in enumerate(subset_1):
+# #             points = p[1]
+# #             region = p[4]
+# #             # print(points)
+# #             # print(region)
+# #             x = region[0,0]
+# #             y = region[1,0]
+# #             w = region[0,1] - region[0,0]
+# #             h = region[1,1] - region[1,0]
+
+# #             if itera == 0:
+# #                 p1, = ax.plot(points[0], points[1], 'k*', markersize = 7, label = "Global Points")
+# #                 # ax.annotate(f"{i}-{itera}",xy=(points[0]+0.001, points[1]+0.001))
+# #                 global_handles.append(p1)
+# #             else:
+# #                 p2, = ax.plot(points[0], points[1], 'b.', markersize = 4, label = "Local Points")
+# #                 local_handles.append(p2)
             
             
-                # ax.annotate(f"{i}-{itera}",xy=(points[0]+0.001, points[1]+0.001))
-            # ax.add_patch( Rectangle((x,y),
-            #                     w, h,
-            #                     ec = 'black',
-            #                     fc ='green',
-            #                     alpha = 0.1))    
+# #                 # ax.annotate(f"{i}-{itera}",xy=(points[0]+0.001, points[1]+0.001))
+# #             # ax.add_patch( Rectangle((x,y),
+# #             #                     w, h,
+# #             #                     ec = 'black',
+# #             #                     fc ='green',
+# #             #                     alpha = 0.1))    
 
 
-# for i in np.unique(distinction):
-#     # print(distinction == i)
+# # # for i in np.unique(distinction):
+# # #     # print(distinction == i)
 
-#     # subset_1 = point_history[np.logical_and(np.logical_or(modes == 1, modes == 3), distinction == i), :]
-#     subset_1 = point_history[distinction == i, :]
+# # #     # subset_1 = point_history[np.logical_and(np.logical_or(modes == 1, modes == 3), distinction == i), :]
+# # #     subset_1 = point_history[distinction == i, :]
 
-#     if subset_1.shape[0] != 0:
-#         all_points = np.stack(subset_1[:,1])
-#         p1 = ax.plot(all_points[:,0], all_points[:,1], "b.", markersize = 4)
-#         p2 = ax.plot(all_points[0,0], all_points[0,1], "k*", markersize = 7)
-# ax.set_aspect('equal', adjustable = 'box')
-# ax2.set_aspect('equal', adjustable = 'box')
-ax.legend([global_handles[0],local_handles[0]], ["Global Points", "Local Points"])
-plt.savefig('pysoarc_samples.pdf')
+# # #     if subset_1.shape[0] != 0:
+# # #         all_points = np.stack(subset_1[:,1])
+# # #         p1 = ax.plot(all_points[:,0], all_points[:,1], "b.", markersize = 4)
+# # #         p2 = ax.plot(all_points[0,0], all_points[0,1], "k*", markersize = 7)
+# # # ax.set_aspect('equal', adjustable = 'box')
+# # # ax2.set_aspect('equal', adjustable = 'box')
+# ax.legend([global_handles[0],local_handles[0]], ["Global Points", "Local Points"])

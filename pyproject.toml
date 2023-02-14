@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pysoarc"
-version = "0.1.2"
+version = "0.1.1"
 description = ""
 authors = ["Tanmay Khandait <tkhandai@asu.edu>"]
 packages = [{include="pysoarc"}]
