@@ -1,2 +1,5 @@
 arch_benchmark_2022
 __pycache__
+demos/UR_res
+demos/pysoarc_plots
+demos/pysoarc_res

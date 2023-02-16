@@ -93,18 +93,6 @@ def _generate_dataset(output_type: int, *args):
     return x_train, y_train
 
 
-# def _global_pt_region(pt: Any) -> Region:
-#     pass
-
-
-# def _local_pt_region(pt: Any) -> Region:
-#     pass
-
-
-# def _region_local_pt(region: Region) -> Any:
-#     pass
-
-
 def _is_falsification(evaluation: NDArray) -> bool:
     return evaluation[0] == 0 and evaluation[1] < 0
 
@@ -118,7 +106,7 @@ class Fn:
         self.count = self.count + 1
         
         hybrid_dist = self.func(*arg)
-        print(self.count, arg[0], hybrid_dist)
+        # print(self.count, arg[0], hybrid_dist)
         
         return hybrid_dist
 
@@ -129,15 +117,17 @@ def _evaluate_samples(
 ) -> NDArray:
 
     evaluations = []
-
+    
+    modified_x_train = []
     for sample in samples:
         evaluation = np.array(fn(sample), dtype=np.double)
         evaluations.append(evaluation)
-
+        modified_x_train.append(sample)
         if _is_falsification(evaluation) and (behavior is Behavior.FALSIFICATION):
+            print(evaluation)
             break
 
-    return np.array(evaluations)
+    return np.array(modified_x_train), np.array(evaluations)
 
 
 ##### v9 ####### add user defined parameters to input, break once falsified
@@ -176,7 +166,7 @@ def PySOARC(
 
     initial_samples = lhs_sampling(n_0, inpRanges, tf_dim, rng)
     # inital_samples_hd = initial_samples
-    initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
+    initial_samples, initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
     
     initial_points = InitializationPhase(
                         initial_samples_x = initial_samples,
@@ -187,12 +177,8 @@ def PySOARC(
         # TODO: Create return structure
         return algo_journey
 
-    
-    
-    
-
     while test_fn.count < nSamples:
-        # print(f"{test_fn.count} Evaluations completed -> {initial_points.initial_samples_x.shape}, {initial_points.initial_samples_y.shape}")
+        
         
         x_train, y_train = _generate_dataset(1, algo_journey)
         print(f"{test_fn.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
@@ -241,7 +227,7 @@ def PySOARC(
                     best_crowd = ga_result.F[k, 1]
                     global_rp_x = ga_result.X[k, :]
         global_rp_x = np.array([global_rp_x])
-        global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
+        global_rp_x, global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
         algo_journey.append(GlobalPhase(global_rp_x, global_rp_y))
         
         if _is_falsification(global_rp_y[0]) and (behavior is Behavior.FALSIFICATION):
@@ -249,7 +235,7 @@ def PySOARC(
             return algo_journey
         
         local_sample_x, local_samples_y = _generate_dataset(0, algo_journey)
-        print(local_sample_x.shape, test_fn.count)
+        
         TR_Bounds = np.vstack(
             [    global_rp_x[0,:]- inpRanges[:, 0], 
                 inpRanges[:, 1] - global_rp_x[0,:], 
@@ -258,28 +244,21 @@ def PySOARC(
         ).flatten()
 
         
-        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds>0.05]))
+        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds>0.02]))
         
         trust_region = np.empty((inpRanges.shape))
         for d in range(tf_dim): 
             trust_region[d, 0] = max(global_rp_x[0,d] - TR_size, inpRanges[d,0])
             trust_region[d, 1] = min(global_rp_x[0,d] + TR_size, inpRanges[d,1])
-        # print("**************************")
-        # print(TR_Bounds)
-        # print(TR_size)
-        # print(global_rp_x)
-        # print(trust_region)
-        # print(fdvbrggrs)
+
         local_sample_x_subset, local_sample_y_subset = pointsInTR(local_sample_x, local_samples_y, trust_region)
         num_points_present = local_sample_x_subset.shape[0]
         
         local_counter = 0
         restart_point_x, restart_point_y = deepcopy(global_rp_x), deepcopy(global_rp_y)
-        # print(trust_region)
-        # print(inpRanges)
-        # print("**************")
+
         if local_search == "gp_local_search":
-            print("LS")
+            
             while (local_counter < max_loc_iter 
                     and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])
                     and test_fn.count + (max(trs_max_budget - num_points_present,0) + 1) < nSamples):
@@ -287,24 +266,15 @@ def PySOARC(
                 # print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
                 if trs_max_budget - num_points_present > 0:
                     num_samples_needed = trs_max_budget - num_points_present
-                    print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
                     
                     local_additional_x = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
-                    local_additional_y = _evaluate_samples(local_additional_x, test_fn, behavior)
-                    # print(local_additional_x)
-                    # print(trust_region)
-                    # local_x = np.vstack((x_train, local_additional_x))
-                    # local_y = np.hstack((y_train, local_additional_y))
-
+                    local_additional_x, local_additional_y = _evaluate_samples(local_additional_x, test_fn, behavior)
+                    
                     algo_journey.append(LocalPhase(trust_region, local_additional_x, local_additional_y))
                     
-                    if _is_falsification(local_additional_y[0]) and (behavior is Behavior.FALSIFICATION):
-                        # TODO
-                        return algo_journey
-                    
-
-                    
-                # print(algo_journey)
+                    if any(_is_falsification(sd) for sd in local_additional_y) and (behavior is Behavior.FALSIFICATION):
+                        return algo_journey               
+                
                 x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
                 local_sample_x_subset, local_sample_y_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
                 
@@ -324,21 +294,13 @@ def PySOARC(
                                                     rng
                 )
                 algo_journey.append(LocalBest(local_best_x, local_best_y))
-                    
                 if _is_falsification(local_best_y[0]) and (behavior is Behavior.FALSIFICATION):
-                    # TODO
                     return algo_journey
 
-                # x_train_hd, y_train_hd = _generate_dataset(algo_journey, 0)
-                # print(xk, fk, rho, falsified)
-                
-                # """ What the use of this?
                 max_indicator = np.max(np.abs(local_best_x - restart_point_x)) / TR_size
                 test = rng.random()
                 if max_indicator < test:
                     break
-                
-                
 
                 # execute RC testing and TR control
                 if rho < eta0:
@@ -353,8 +315,12 @@ def PySOARC(
                         restart_point_x = local_best_x
                         restart_point_y = local_best_y
                         
-                        valid_bound = np.array([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size]).flatten()
-                        TR_size = np.min(valid_bound[valid_bound>=0.05])
+                        valid_bound = np.array([
+                                        np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), 
+                                        np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), 
+                                        TR_size
+                                    ]).flatten()
+                        TR_size = np.min(valid_bound[valid_bound>=0.02])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 
@@ -364,9 +330,13 @@ def PySOARC(
                         # high pass of RC test
                         restart_point_x = local_best_x
                         restart_point_y = local_best_y
-                        valid_bound = np.array([np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), TR_size*gamma]).flatten()
+                        valid_bound = np.array([
+                                        np.min(np.abs(restart_point_x[0,:] - inpRanges[:, 0])), 
+                                        np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), 
+                                        TR_size*gamma
+                                    ]).flatten()
                         # TR_size *= gamma
-                        TR_size = np.min(valid_bound[valid_bound>=0.05])
+                        TR_size = np.min(valid_bound[valid_bound>=0.02])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 

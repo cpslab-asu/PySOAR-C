@@ -18,9 +18,7 @@ class PySOARCResult:
         average_cost: The average cost of all the samples selected.
     """
 
-    points: NDArray
-    modes: list
-    algorithm_time: float
+    algorithm_points: List
 
 
 @dataclass(frozen=True)
@@ -50,7 +48,8 @@ class run_pysoarc(Optimizer[PySOARCResult]):
         def test_function(sample: np.ndarray) -> float:
             return func.eval_sample(Sample(sample))
         
-        samples, modes, algo_run_time = PySOARC(n_0=self.n_0, 
+        samples = PySOARC(
+                                        n_0=self.n_0, 
                                         nSamples=budget, 
                                         trs_max_budget=self.trs_max_budget,
                                         max_loc_iter=self.max_loc_iter,
@@ -65,8 +64,6 @@ class run_pysoarc(Optimizer[PySOARCResult]):
                                         gpr_model=self.gpr_model,
                                         seed = seed,
                                         local_search=self.local_search,
-                                        folder_name=self.folder_name, 
-                                        benchmark_name=self.benchmark_name,
                                         behavior=self.behavior
                                     )
-        return PySOARCResult(samples, modes, algo_run_time)                                
+        return PySOARCResult(samples)                                

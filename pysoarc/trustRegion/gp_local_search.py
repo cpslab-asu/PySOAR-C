@@ -41,11 +41,7 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, test_fn, tf_dim, tru
     )
     xk = np.array([np.array(new_params.x)])
     
-    rob = tf_wrapper(xk, test_fn, behavior)
-    # print(pred_sample_y[0][0])
-    # print(rob[0][0])
-    # print(gpr.predict(pred_sample_x)[0])
-    # print(gpr.predict(xk)[0])
+    xk, rob = tf_wrapper(xk, test_fn, behavior)
     rho = (pred_sample_y[0][0] - rob[0][0]) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
 
     return xk, rob, rho[0]
