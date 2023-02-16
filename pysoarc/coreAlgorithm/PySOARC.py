@@ -143,6 +143,8 @@ def PySOARC(
     delta: float,
     gamma: float,
     eps_tr: float,
+    min_tr_size: float,
+    TR_threshold: float,
     test_fn: Callable[[NDArray[np.double]], NDArray[np.double]],
     gpr_model: GaussianProcessRegressor, 
     seed: int, 
@@ -239,12 +241,12 @@ def PySOARC(
         TR_Bounds = np.vstack(
             [    global_rp_x[0,:]- inpRanges[:, 0], 
                 inpRanges[:, 1] - global_rp_x[0,:], 
-                (inpRanges[:, 1] - inpRanges[:, 0]) / 10
+                (inpRanges[:, 1] - inpRanges[:, 0]) / min_tr_size
             ]
         ).flatten()
 
         
-        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds>0.02]))
+        TR_size = np.min(np.abs(TR_Bounds[TR_Bounds>=TR_threshold]))
         
         trust_region = np.empty((inpRanges.shape))
         for d in range(tf_dim): 
@@ -320,7 +322,7 @@ def PySOARC(
                                         np.min(np.abs(inpRanges[:, 1] - restart_point_x[0,:])), 
                                         TR_size
                                     ]).flatten()
-                        TR_size = np.min(valid_bound[valid_bound>=0.02])
+                        TR_size = np.min(valid_bound[valid_bound>=TR_threshold])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 
@@ -336,7 +338,7 @@ def PySOARC(
                                         TR_size*gamma
                                     ]).flatten()
                         # TR_size *= gamma
-                        TR_size = np.min(valid_bound[valid_bound>=0.02])
+                        TR_size = np.min(valid_bound[valid_bound>=TR_threshold])
                         trust_region = np.empty((inpRanges.shape))
                         
                         for d in range(tf_dim): 

@@ -51,6 +51,8 @@ for i in range(NUMBER_OF_MACRO_REPLICATIONS):
         delta = .75,
         gamma = 1.25,
         eps_tr = 0.01,
+        min_tr_size=10.0,
+        TR_threshold=0.05,
         test_fn = ha.get_cost,
         gpr_model = InternalGPR(),
         seed = starting_seed,

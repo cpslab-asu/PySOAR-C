@@ -36,6 +36,8 @@ class run_pysoarc(Optimizer[PySOARCResult]):
     delta: float
     gamma: float
     eps_tr: float
+    min_tr_size: float
+    TR_threshold: float
     gpr_model: Callable
     local_search: str
     folder_name: str
@@ -49,21 +51,23 @@ class run_pysoarc(Optimizer[PySOARCResult]):
             return func.eval_sample(Sample(sample))
         
         samples = PySOARC(
-                                        n_0=self.n_0, 
-                                        nSamples=budget, 
-                                        trs_max_budget=self.trs_max_budget,
-                                        max_loc_iter=self.max_loc_iter,
-                                        inpRanges= region_support,
-                                        alpha_lvl_set=self.alpha_lvl_set, 
-                                        eta0=self.eta0, 
-                                        eta1=self.eta1, 
-                                        delta=self.delta, 
-                                        gamma=self.gamma, 
-                                        eps_tr=self.eps_tr, 
-                                        prob= test_function,
-                                        gpr_model=self.gpr_model,
-                                        seed = seed,
-                                        local_search=self.local_search,
-                                        behavior=self.behavior
-                                    )
+                        n_0=self.n_0, 
+                        nSamples=budget, 
+                        trs_max_budget=self.trs_max_budget,
+                        max_loc_iter=self.max_loc_iter,
+                        inpRanges= region_support,
+                        alpha_lvl_set=self.alpha_lvl_set, 
+                        eta0=self.eta0, 
+                        eta1=self.eta1, 
+                        delta=self.delta, 
+                        gamma=self.gamma, 
+                        eps_tr=self.eps_tr, 
+                        min_tr_size=self.min_tr_size,
+                        TR_threshold=self.TR_threshold,
+                        prob= test_function,
+                        gpr_model=self.gpr_model,
+                        seed = seed,
+                        local_search=self.local_search,
+                        behavior=self.behavior
+                )
         return PySOARCResult(samples)                                
