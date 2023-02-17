@@ -23,7 +23,7 @@ class PySOARCResult:
 
 @dataclass(frozen=True)
 class run_pysoarc(Optimizer[PySOARCResult]):
-    """The PartX optimizer provides statistical guarantees about the existence of falsifying behaviour in a system."""
+    """The PySOARC optimizer"""
 
     # inpRanges: 
     
@@ -40,8 +40,6 @@ class run_pysoarc(Optimizer[PySOARCResult]):
     TR_threshold: float
     gpr_model: Callable
     local_search: str
-    folder_name: str
-    benchmark_name: str
     behavior: str
 
     def optimize(self, func: ObjectiveFn, bounds: Bounds, budget:int, seed: int) -> PySOARCResult:

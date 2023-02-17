@@ -2,13 +2,13 @@ from ..kriging_gpr.interface import OK_Rpredict, OK_Rmodel_kd_nugget
 from ..utils import compute_robustness, quadratic_model, EIcalc_kd
 from ..gprInterface import GPR
 from ..sampling import uniform_sampling
-
+from ..coreAlgorithm import Behavior
 from copy import deepcopy
 import numpy as np
 import math
 from scipy.optimize import minimize
 
-def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, test_fn, tf_dim, trust_region, xTrain_local, yTrain_local, behavior, gpr_model, rng):
+def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, test_fn, tf_dim, trust_region, xTrain_local, yTrain_local, behavior:Behavior, gpr_model, rng):
     # Fit Gaussian Process Meta Model Locally
     gpr = GPR(deepcopy(gpr_model))
     gpr.fit(xTrain_local, yTrain_local)
@@ -42,7 +42,10 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, test_fn, tf_dim, tru
     xk = np.array([np.array(new_params.x)])
     
     xk, rob = tf_wrapper(xk, test_fn, behavior)
-    rho = (pred_sample_y[0][0] - rob[0][0]) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
+    if behavior is behavior.COVERAGE:
+        rho = [None]
+    else:
+        rho = (pred_sample_y[0][0] - rob[0][0]) / (gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0])
 
     return xk, rob, rho[0]
     

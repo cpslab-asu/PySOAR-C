@@ -41,6 +41,7 @@ class Behavior(enum.IntEnum):
 
     FALSIFICATION = enum.auto()
     MINIMIZATION = enum.auto()
+    COVERAGE = enum.auto()
 
 
 
@@ -94,6 +95,8 @@ def _generate_dataset(output_type: int, *args):
 
 
 def _is_falsification(evaluation: NDArray) -> bool:
+    if evaluation is None:
+        return True
     return evaluation[0] == 0 and evaluation[1] < 0
 
 
@@ -121,11 +124,19 @@ def _evaluate_samples(
     modified_x_train = []
     for sample in samples:
         evaluation = np.array(fn(sample), dtype=np.double)
-        evaluations.append(evaluation)
-        modified_x_train.append(sample)
-        if _is_falsification(evaluation) and (behavior is Behavior.FALSIFICATION):
-            print(evaluation)
-            break
+        
+        if _is_falsification(evaluation): 
+            if behavior is Behavior.FALSIFICATION:
+                evaluations.append(evaluation)
+                modified_x_train.append(sample)
+                break
+            elif behavior is Behavior.COVERAGE:
+                evaluations.append(evaluation)
+                modified_x_train.append(sample)
+                break   
+        else:
+            evaluations.append(evaluation)
+            modified_x_train.append(sample)
 
     return np.array(modified_x_train), np.array(evaluations)
 
@@ -175,7 +186,7 @@ def PySOARC(
                         initial_samples_y = initial_sample_distances
                     )
     algo_journey = [initial_points]
-    if any(_is_falsification(sd) for sd in initial_sample_distances) and (behavior is Behavior.FALSIFICATION):
+    if any(_is_falsification(sd) for sd in initial_sample_distances) and (behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE):
         # TODO: Create return structure
         return algo_journey
 
@@ -232,7 +243,7 @@ def PySOARC(
         global_rp_x, global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
         algo_journey.append(GlobalPhase(global_rp_x, global_rp_y))
         
-        if _is_falsification(global_rp_y[0]) and (behavior is Behavior.FALSIFICATION):
+        if _is_falsification(global_rp_y[0]) and (behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE):
             # TODO
             return algo_journey
         
@@ -274,7 +285,7 @@ def PySOARC(
                     
                     algo_journey.append(LocalPhase(trust_region, local_additional_x, local_additional_y))
                     
-                    if any(_is_falsification(sd) for sd in local_additional_y) and (behavior is Behavior.FALSIFICATION):
+                    if any(_is_falsification(sd) for sd in local_additional_y) and (behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE):
                         return algo_journey               
                 
                 x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
