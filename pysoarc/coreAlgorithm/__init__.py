@@ -1,3 +1,3 @@
-from .PySOARC import PySOARC, Behavior
+from .behavior import Behavior
 
-__all__ = ["PySOARC", 'Behavior']
+__all__ = ['Behavior']

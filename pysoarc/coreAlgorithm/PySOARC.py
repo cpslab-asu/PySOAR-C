@@ -1,9 +1,5 @@
-import pathlib
-import time
-import pickle
 import math
 import logging
-import enum
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Callable, Literal
@@ -16,32 +12,15 @@ from pymoo.problems.functional import FunctionalProblem
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
-from pymoo.visualization.scatter import Scatter
-from pyswarms.single import LocalBestPSO, GlobalBestPSO
-from pyswarm import pso
-# from scipy.optimize import minimize
-from scipy.stats import norm
-from scipy.optimize import NonlinearConstraint
 
-from ..trustRegion import local_gp_tr, gradient_based_tr, local_best_ei
-from ..utils import Fn, compute_robustness, EIcalc_kd, CrowdingDist_kd, ei_cd, pointsInTR
+from .behavior import Behavior
+from ..trustRegion import local_best_ei
+from ..utils import Fn, EIcalc_kd, CrowdingDist_kd, pointsInTR
 from ..sampling import lhs_sampling, uniform_sampling
 from ..gprInterface import GPR, GaussianProcessRegressor
 
 _logger = logging.getLogger("PySOAR-C")
 
-class Behavior(enum.IntEnum):
-    """Behavior when falsifying case for system is encountered.
-
-    Attributes:
-        FALSIFICATION: Stop searching when the first falsifying case is encountered
-        MINIMIZATION: Continue searching after encountering a falsifying case until iteration
-                      budget is exhausted
-    """
-
-    FALSIFICATION = enum.auto()
-    MINIMIZATION = enum.auto()
-    COVERAGE = enum.auto()
 
 
 
@@ -109,7 +88,7 @@ class Fn:
         self.count = self.count + 1
         
         hybrid_dist = self.func(*arg)
-        # print(self.count, arg[0], hybrid_dist)
+        print(self.count, arg[0], hybrid_dist)
         
         return hybrid_dist
 
@@ -362,7 +341,7 @@ def PySOARC(
                 local_sample_x_subset, local_sample_y_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
                 num_points_present = local_sample_x_subset.shape[0]
                 
-                _logger.debug(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
+                # print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
                 
                 # check if budget has been exhausted
 

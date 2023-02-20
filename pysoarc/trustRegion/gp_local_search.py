@@ -1,5 +1,4 @@
-from ..kriging_gpr.interface import OK_Rpredict, OK_Rmodel_kd_nugget
-from ..utils import compute_robustness, quadratic_model, EIcalc_kd
+from ..utils import EIcalc_kd
 from ..gprInterface import GPR
 from ..sampling import uniform_sampling
 from ..coreAlgorithm import Behavior

@@ -22,7 +22,7 @@ class PySOARCResult:
 
 
 @dataclass(frozen=True)
-class run_pysoarc(Optimizer[PySOARCResult]):
+class run_pysoarc(Optimizer[PySOARCResult, None]):
     """The PySOARC optimizer"""
 
     # inpRanges: 
