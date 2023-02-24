@@ -87,7 +87,7 @@ class Fn:
         self.count = self.count + 1
 
         hybrid_dist = self.func(*arg)
-        print(self.count, arg[0], hybrid_dist)
+        # print(self.count, arg[0], hybrid_dist)
 
         return hybrid_dist
 
@@ -178,7 +178,7 @@ def PySOARC(
     while test_fn.count < nSamples:
 
         x_train, y_train = _generate_dataset(1, algo_journey)
-        print(f"{test_fn.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
+        # print(f"{test_fn.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
         gpr = GPR(deepcopy(gpr_model))
         gpr.fit(x_train, y_train)
 
@@ -196,7 +196,7 @@ def PySOARC(
         )
 
         algorithm = NSGA2(
-            pop_size=150,
+            pop_size=50,
             sampling=FloatRandomSampling(),
             crossover=SBX(prob=0.9, eta=15),
             mutation=PM(eta=20),
@@ -207,7 +207,7 @@ def PySOARC(
         ga_result = minimize(
             problem=problem,
             algorithm=algorithm,
-            termination=("n_gen", 200),
+            termination=("n_gen", 100),
             seed=ga_seed[0],
             verbose=False,
         )
