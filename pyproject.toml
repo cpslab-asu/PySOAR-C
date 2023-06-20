@@ -21,7 +21,7 @@ deap = "^1.3.3"
 pymoo = "^0.6.0"
 polytope = "^0.2.3"
 Shapely = "^1.8.2"
-psy-taliro = "^1.0.0b7"
+psy-taliro = {git = "https://github.com/cpslab-asu/psy-taliro.git", rev = "e8a7e9e"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
