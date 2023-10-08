@@ -1,14 +1,11 @@
 poetry installation from: https://python-poetry.org/docs/master/
 
 after installing:
-1) go into arch2022_benchmarks
-cd arch_benchmarks
+1) create the virtual environment
+poetry install
 
-2) create the virtual environment
-poetry update
+2) cd demos
 
-3) Install matlab in environemnt path
-
-3) run the AT1 demo and store the results in Test_AT1 folder
-poetry run python benchmarks AT1 -f"Test_AT1"
+3) run the NLF_example.py in demo folder and store the results
+poetry run python NLF_example.py
 
