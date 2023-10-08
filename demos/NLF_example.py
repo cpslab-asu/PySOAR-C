@@ -6,9 +6,6 @@ from numpy.typing import NDArray
 from pysoar import PySOAR
 from pysoar.gprInterface import InternalGPR
 
-results_folder = "NonLinearFunction_mo"
-benchmark = "Himmelblaus"
-
 def test_function(X):
     a = (100 * (X[1] - X[0]**2)**2 + ((X[0]-1)**2))
     b = (100 * (X[2] - X[1]**2)**2 + ((X[1]-1)**2))
