@@ -20,7 +20,7 @@ def local_best_ei(pred_sample_x, pred_sample_y, tf_wrapper, tf_dim, trust_region
     random_samples = uniform_sampling(1000, trust_region, tf_dim, rng)
     min_bo_val = EI_obj(random_samples)
 
-    min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])
+    min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])[0,:]
     min_bo_val = np.min(min_bo_val)
 
     for _ in range(9):

@@ -1,7 +1,6 @@
-import math
 import pickle
 import numpy as np
-from numpy.typing import NDArray
+
 
 from pysoar import PySOAR
 from pysoar.gprInterface import InternalGPR
