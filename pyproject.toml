@@ -76,3 +76,7 @@ extra-dependencies = [
 
 [tool.hatch.envs.tests.scripts]
 run = "pytest tests"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
