@@ -1,3 +1,6 @@
 arch_benchmark_2022
-*.pyc
 .DS_Store
+
+*.pyc
+*.whl
+*.tar.gz
