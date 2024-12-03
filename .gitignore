@@ -4,3 +4,4 @@ arch_benchmark_2022
 *.pyc
 *.whl
 *.tar.gz
+*.log
