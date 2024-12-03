@@ -52,6 +52,15 @@ packages = ["src/soar"]
 [tool.hatch.version]
 path = "src/soar/__init__.py"
 
+[tool.hatch.envs.default]
+dependencies = [
+    "ruff",
+]
+
+[tool.hatch.envs.default.scripts]
+lint = "ruff check {args:src/soar test}"
+format = "ruff format {args:src/soar test}"
+
 [tool.hatch.envs.types]
 extra-dependencies = [
   "mypy>=1.0.0",
