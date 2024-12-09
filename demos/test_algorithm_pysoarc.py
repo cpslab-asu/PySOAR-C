@@ -1,8 +1,8 @@
 import math
 import numpy as np
 
-from pysoarc import Behavior, PySOARC
-from pysoarc.gprInterface import InternalGPR
+from soar.optimizer import Behavior, PySOARC
+from soar.gpr import InternalGPR
 
     
 from ha_tf import HA

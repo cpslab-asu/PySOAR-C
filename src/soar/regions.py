@@ -4,10 +4,9 @@ from copy import deepcopy
 import numpy as np
 from scipy.optimize import minimize
 
-from ..coreAlgorithm import Behavior
-from ..gprInterface import GPR
-from ..sampling import uniform_sampling
-from ..utils import EIcalc_kd
+from .optimizer import Behavior, EIcalc_kd
+from .gpr import GPR
+from .sampling import uniform_sampling
 
 
 def local_best_ei(

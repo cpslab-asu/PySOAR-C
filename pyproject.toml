@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "pysoarc"
+name = "soar"
 version = "0.1.1"
 description = ""
 authors = ["Tanmay Khandait <tkhandai@asu.edu>"]
-packages = [{include="pysoarc"}]
+packages = [{include="soar", from = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
@@ -24,7 +24,7 @@ Shapely = "^1.8.2"
 psy-taliro = {git = "https://github.com/cpslab-asu/psy-taliro.git", rev = "e8a7e9e"}
 
 [tool.poetry.dev-dependencies]
-pytest = "^5.2"
+pytest = "^8"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
