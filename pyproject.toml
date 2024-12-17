@@ -1,3 +1,7 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "soar"
 version = "0.1.1"
@@ -26,6 +30,6 @@ psy-taliro = {git = "https://github.com/cpslab-asu/psy-taliro.git", rev = "e8a7e
 [tool.poetry.dev-dependencies]
 pytest = "^8"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.pyright]
+include = ["src"]
+stubPath = "src/stubs"
