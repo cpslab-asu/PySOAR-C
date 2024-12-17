@@ -29,7 +29,12 @@ psy-taliro = {git = "https://github.com/cpslab-asu/psy-taliro.git", rev = "e8a7e
 
 [tool.poetry.dev-dependencies]
 pytest = "^8"
+mypy = "^1"
 
 [tool.pyright]
 include = ["src"]
 stubPath = "src/stubs"
+
+[tool.mypy]
+mypy_path = "src/stubs"
+files = ["src/**/*.py", "tests/*.py"]
