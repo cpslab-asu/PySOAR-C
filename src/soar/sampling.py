@@ -1,17 +1,18 @@
 import numpy as np
-import numpy.typing as npt
+from numpy.typing import NDArray
 from scipy.stats import qmc
 
 
 def lhs_sampling(
     num_samples: int,
-    region_support: npt.NDArray,
+    region_support: NDArray,
     tf_dim: int,
     rng,
-) -> np.array:
+) -> NDArray:
     """Latin Hypercube Sampling: Sample *num_samples* points within the *region_support* which has a dimension as mentioned below.
 
-    Args:
+    Attributes:
+    ----------
         num_samples: Number of points to sample within the region bounds.
         region_support: The bounds of the region within which the sampling is to be done.
                                     Region Bounds is N x O where;
@@ -20,6 +21,7 @@ def lhs_sampling(
         tf_dim: The dimensionality of the region. (Dimensionality of the test function)
 
     Returns:
+    ---------
         np.array: 3d array with samples between the bounds.
                     Size of the array will be M x N x O
                         N = num_samples
@@ -31,7 +33,7 @@ def lhs_sampling(
     if region_support.shape[1] != 2:
         raise ValueError("Region Support matrix must be MxNx2")
     
-    if not np.alltrue(region_support[:,1]-region_support[:,0] >= 0):
+    if not np.all(region_support[:,1]-region_support[:,0] >= 0):
         raise ValueError("Region Support Z-pairs must be in increasing order")
 
     sampler = qmc.LatinHypercube(d=tf_dim, seed=rng)
@@ -45,11 +47,12 @@ def lhs_sampling(
 
 
 def uniform_sampling(
-    num_samples: int, region_support: npt.NDArray, tf_dim: int, rng
-) -> np.array:
+    num_samples: int, region_support: NDArray, tf_dim: int, rng
+) -> NDArray:
     """Sample *num_samples* points within the *region_support* which has a dimension as mentioned below.
 
-    Args:
+    Attributes:
+    ----------
         num_samples: Number of points to sample within the region bounds.
         region_support: The bounds of the region within which the sampling is to be done.
                                     Region Bounds is N x O where;
@@ -58,6 +61,7 @@ def uniform_sampling(
         tf_dim: The dimensionality of the region. (Dimensionality of the test function)
 
     Returns:
+    ---------
         np.array: 3d array with samples between the bounds.
                     Size of the array will be N x O
                         N = num_samples
@@ -69,7 +73,7 @@ def uniform_sampling(
     if region_support.shape[1] != 2:
         raise ValueError("Region Support matrix must be MxNx2")
     
-    if not np.alltrue(region_support[:,1]-region_support[:,0] >= 0):
+    if not np.all(region_support[:,1]-region_support[:,0] >= 0):
         raise ValueError("Region Support Z-pairs must be in increasing order")
 
     raw_samples = np.apply_along_axis(

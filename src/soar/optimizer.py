@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import math
 from copy import deepcopy
 from scipy.optimize import minimize as minimize_scipy
@@ -85,7 +84,8 @@ def local_best_ei(
 class Behavior(enum.IntEnum):
     """Behavior when falsifying case for system is encountered.
 
-    Attributes:
+   Attributes:
+    ----------
         FALSIFICATION: Stop searching when the first falsifying case is encountered
         MINIMIZATION: Continue searching after encountering a falsifying case until iteration
                       budget is exhausted
@@ -99,11 +99,13 @@ class Behavior(enum.IntEnum):
 def _surrogate(gpr_model: GPR, x_train: NDArray):
     """_surrogate Model function
 
-    Args:
+    Attributes:
+    ----------
         model: Gaussian process model
         X: Input points
 
     Returns:
+    ---------
         Predicted values of points using gaussian process model
     """
 
@@ -113,13 +115,15 @@ def _surrogate(gpr_model: GPR, x_train: NDArray):
 def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
     """Acquisition Model: Expected Improvement
 
-    Args:
+    Attributes:
+    ----------
         y_train: corresponding robustness values. Expected NDArray of shape (m,) where m is the number of output samples
         sample: Sample(s) whose EI is to be calculated
         gpr_model: GPR model
         sample_type: Single sample or list of model. Defaults to "single". other options is "multiple".
 
     Returns:
+    ---------
         EI of samples
     """
     curr_best = np.min(y_train)
@@ -160,11 +164,13 @@ def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
 def CrowdingDist_kd(x_0:NDArray, x:NDArray) -> float:
     """COmputes the crowding distance between a x and set of points x_0
 
-    Args:
+    Attributes:
+    ----------
         x_0 : Single point of Shape (1,d), where d is the dimensionality
         x: Exisiting points to caluclate crowding distance from. Expected shape (n,d), where n is the dimensionality and d is the dimensionality
 
     Returns:
+    --------
         float: Crowding distance of x_0 from x
     """
     return np.sum(np.sqrt(np.sum((x_0-x)**2,1)))
@@ -195,12 +201,14 @@ def ei_cd(samples, x_train:NDArray, y_train:NDArray, gpr:GPR, alpha_lvl_set:floa
 def pointsInTR(samples_in: NDArray, samples_out:NDArray, subregion: NDArray) -> tuple[NDArray, NDArray]:
     """
 
-    Args:
+    Attributes:
+    ----------
         samples_in: Samples from Training set. Expected shape is (n,d) where n is the number of samples and d is the dimensionality
         samples_out: Evaluated values of samples from Training set. Expected shape is (n,) where n is the number of samples
         region_support: Min and Max of all dimensions
 
     Returns:
+    --------
         list: Divided samples and coreesponding robustness values
     """    
     regionSamples = []
@@ -244,6 +252,16 @@ class LocalBest:
     local_best_x: NDArray
     local_best_y: NDArray
 
+    def __post_init__(self):
+        if type(self.local_best_x) != np.ndarray:
+            raise TypeError("local_best_x must be an NDArray")
+        if type(self.local_best_y) != np.ndarray:
+            raise TypeError("local_best_y must be an NDArray")
+        if len(self.local_best_x.shape) != 1:
+            raise ValueError("local_best_x must be a 1-dimensional vector.")
+        if self.local_best_y.shape != (1, 2):
+            raise ValueError("local_best_y must be a 1x2 matrix.")
+
 
 @dataclass(frozen=True, slots=True)
 class LocalPhase:
@@ -251,6 +269,7 @@ class LocalPhase:
     Represents the data collected during the local sampling phase in an optimization or analysis process.
 
     Attributes:
+    ----------
         region_support (NDArray): A NumPy array of shape (d, 2), where `d` is the dimensionality of the problem space.
             - Each row of `region_support` defines the lower and upper bounds for a dimension in the local sampling region.
 
@@ -266,6 +285,19 @@ class LocalPhase:
     local_phase_x: NDArray
     local_phase_y: NDArray
 
+    def __post_init__(self):
+        if type(self.local_phase_x) != np.ndarray:
+            raise TypeError("local_phase_x must be an NDArray")
+        if type(self.local_phase_y) != np.ndarray:
+            raise TypeError("local_phase_y must be an NDArray")
+        if type(self.region_support) != np.ndarray:
+            raise TypeError("region_support must be an NDArray")
+        if len(self.region_support.shape) != 2 or self.region_support.shape[1] != 2:
+            raise ValueError("region_support must be a (d, 2) matrix.")
+        if len(self.local_phase_x.shape) != 2:
+            raise ValueError("local_phase_x must be an (n, d) matrix.")
+        if len(self.local_phase_y.shape) != 2 or self.local_phase_y.shape[1] != 2:
+            raise ValueError("local_phase_y must be an (n, 2) matrix.")
 
 @dataclass(frozen=True, slots=True)
 class GlobalPhase:
@@ -289,6 +321,16 @@ class GlobalPhase:
     restart_point_x: NDArray[np.double]
     restart_point_y: NDArray[np.double]
 
+    def __post_init__(self):
+        if type(self.restart_point_x) != np.ndarray:
+            raise TypeError("restart_point_x must be an NDArray")
+        if type(self.restart_point_y) != np.ndarray:
+            raise TypeError("restart_point_y must be an NDArray")
+        if len(self.restart_point_x.shape) != 1:
+            raise ValueError("restart_point_x must be a 1-dimensional vector.")
+        if self.restart_point_y.shape != (1, 2):
+            raise ValueError("restart_point_y must be a 1x2 matrix.")
+
 
 @dataclass(frozen=True, slots=True)
 class InitializationPhase:
@@ -299,6 +341,7 @@ class InitializationPhase:
     cost values that were evaluated during the optimizer's startup phase.
 
     Attributes:
+    ----------
         initial_samples_x: A DxN matrix of floating-point numbers, where D is the 
                                                 dimensionality of each sample and N is the number of 
                                                 samples. Each column represents a sample in the input 
@@ -311,28 +354,18 @@ class InitializationPhase:
     initial_samples_x: NDArray[np.double]
     initial_samples_y: NDArray[np.double]
 
+    def __post_init__(self):
+        if type(self.initial_samples_x) != np.ndarray:
+            raise TypeError("initial_samples_x must be an NDArray")
+        if type(self.initial_samples_y) != np.ndarray:
+            raise TypeError("initial_samples_y must be an NDArray")
+        if len(self.initial_samples_x.shape) != 2:
+            raise ValueError("initial_samples_x must be a 2D array.")
+        if len(self.initial_samples_y.shape) != 1:
+            raise ValueError("initial_samples_y must be a 1D array.")
+        if self.initial_samples_x.shape[1] != self.initial_samples_y.shape[0]:
+            raise ValueError("The number of samples in initial_samples_x must match the length of initial_samples_y.")
 
-# def _generate_dataset(output_type: int, *args):
-#     if output_type not in [0, 1]:
-#         raise ValueError
-
-#     if type(args[0][0]) == InitializationPhase:
-#         x_train = args[0][0].initial_samples_x
-#         y_train = args[0][0].initial_samples_y[:, output_type]
-#     else:
-#         raise ValueError
-
-#     for arg in args[0][1:]:
-#         if type(arg) == GlobalPhase:
-#             x_train = np.vstack((x_train, arg.restart_point_x))
-#             y_train = np.hstack((y_train, arg.restart_point_y[:, output_type]))
-#         elif type(arg) == LocalPhase:
-#             x_train = np.vstack((x_train, arg.local_phase_x))
-#             y_train = np.hstack((y_train, arg.local_phase_y[:, output_type]))
-#         elif type(arg) == LocalBest:
-#             x_train = np.vstack((x_train, arg.local_best_x))
-#             y_train = np.hstack((y_train, arg.local_best_y[:, output_type]))
-#     return x_train, y_train
 
 def _generate_dataset(output_type: int, *args):
     """
@@ -342,7 +375,7 @@ def _generate_dataset(output_type: int, *args):
     LocalPhase, and LocalBest) into a single training dataset. The dataset consists of input 
     features `x_train` and corresponding output labels `y_train`.
 
-    Parameters:
+    Attributes:
     ----------
     output_type : int
         Specifies the column of output labels to be used for training. Must be 0 or 1.
@@ -405,7 +438,7 @@ def _is_falsification(evaluation: Optional[Union[NDArray, None]]) -> bool:
     """
     Determines whether a given evaluation result indicates a falsification condition.
     
-    Parameters:
+    Attributes:
     ----------
     evaluation : Optional[Union[NDArray, None]]
         An array-like object (typically a NumPy array) containing evaluation results 
@@ -478,7 +511,7 @@ class Fn:
         hybrid_dist = self.func(*arg)
 
         # # Print the call count, the first argument, and the output.
-        print(self.count, arg[0], hybrid_dist)
+        # print(self.count, arg[0], hybrid_dist)
 
         return hybrid_dist
 
@@ -494,12 +527,14 @@ def _evaluate_samples(
     If the behavior is to COVERAGE or FALSIFICATION then the function will terminate when the first
     negative cost value is found.
     
-    Args:
+    Attributes:
+    ----------
         samples: The set of samples to evaluate as a MxN matrix where N is the number of samples
         fn: The cost function that evaluates a M-dim vector into a O-dim vector of cost values
         behavior: The behavior to use if a negative cost value is encountered
 
     Returns:
+    ----------
         A OxN matrix of cost values where each row is the cost value of the corresponding sample.
     """
     
@@ -531,12 +566,17 @@ def PySOARC(
     min_tr_size: float,
     TR_threshold: float,
     test_fn: Callable[[NDArray[np.double]], NDArray[np.double]],
-    gpr_model: GaussianProcessRegressor,
+    gpr_model: GaussianProcessRegressor | None,
     seed: int,
     local_search: str,
     behavior: Behavior = Behavior.FALSIFICATION,
-):
-    # seed = 856785554
+) -> list[InitializationPhase | GlobalPhase | LocalPhase|LocalBest]:
+    #Notes:
+    # Add none check for InternalGPR
+    # Rename gprs for something meaningful
+    # Stick to one documnetation
+    # Check function/class names
+
     inpRanges = np.array(inpRanges)
     test_fn = Fn(test_fn)
     if inpRanges.ndim != 2:
@@ -563,7 +603,7 @@ def PySOARC(
     initial_points = InitializationPhase(
         initial_samples_x=initial_samples, initial_samples_y=initial_sample_distances
     )
-    algo_journey: list[Optional[InitializationPhase | GlobalPhase | LocalPhase|LocalBest]] = [initial_points]
+    algo_journey: list[InitializationPhase | GlobalPhase | LocalPhase|LocalBest] = [initial_points]
 
     if any(_is_falsification(sd) for sd in initial_sample_distances) and (
         behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
