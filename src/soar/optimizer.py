@@ -19,12 +19,13 @@ from pymoo.problems.functional import FunctionalProblem
 from pymoo.core.result import Result as PyMmooResult
 from scipy.stats import norm
 
-
+import pickle
 # from .regions import local_best_ei
 from .sampling import lhs_sampling, uniform_sampling
 from .gpr import GPR, GaussianProcessRegressor
 
 import enum
+
 
 def local_best_ei(
     pred_sample_x,
@@ -50,7 +51,7 @@ def local_best_ei(
     random_samples = uniform_sampling(2000, trust_region, tf_dim, rng)
     min_bo_val = EI_obj(random_samples)
 
-    min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])
+    min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])[0]
     min_bo_val = np.min(min_bo_val)
 
     for _ in range(9):
@@ -66,7 +67,9 @@ def local_best_ei(
         if min_bo is None or EI_obj(new_params.x) < min_bo_val:
             min_bo = new_params.x
             min_bo_val = EI_obj(min_bo)
-    new_params = minimize_scipy(EI_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_bo)
+    new_params = minimize_scipy(
+        EI_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_bo
+    )
     xk = np.array([np.array(new_params.x)])
 
     rob = tf_wrapper(xk, test_fn, behavior)
@@ -81,14 +84,15 @@ def local_best_ei(
     rho_ret = rho[0]
     return xk, rob, rho_ret
 
+
 class Behavior(enum.IntEnum):
     """Behavior when falsifying case for system is encountered.
 
-   Attributes:
-    ----------
-        FALSIFICATION: Stop searching when the first falsifying case is encountered
-        MINIMIZATION: Continue searching after encountering a falsifying case until iteration
-                      budget is exhausted
+    Attributes:
+     ----------
+         FALSIFICATION: Stop searching when the first falsifying case is encountered
+         MINIMIZATION: Continue searching after encountering a falsifying case until iteration
+                       budget is exhausted
     """
 
     FALSIFICATION = enum.auto()
@@ -136,32 +140,28 @@ def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
                 var_1 = curr_best - mu_iter
                 var_2 = var_1 / pred_var
 
-                ei = (var_1 * norm.cdf(var_2)) + (
-                    pred_var * norm.pdf(var_2)
-                )
+                ei = (var_1 * norm.cdf(var_2)) + (pred_var * norm.pdf(var_2))
             else:
                 ei = 0.0
 
             ei_list.append(ei)
         return_ei = np.array(ei_list)
     elif len(sample.shape) == 1:
-        
+
         mu, std = _surrogate(gpr_model, sample.reshape(1, -1))
         pred_var = std[0]
         if pred_var > 0:
             var_1 = curr_best - mu[0]
             var_2 = var_1 / pred_var
 
-            ei = (var_1 * norm.cdf(var_2)) + (
-                pred_var * norm.pdf(var_2)
-            )
+            ei = (var_1 * norm.cdf(var_2)) + (pred_var * norm.pdf(var_2))
         else:
             ei = 0.0
         return_ei = ei
     return return_ei
 
 
-def CrowdingDist_kd(x_0:NDArray, x:NDArray) -> float:
+def CrowdingDist_kd(x_0: NDArray, x: NDArray) -> float:
     """COmputes the crowding distance between a x and set of points x_0
 
     Attributes:
@@ -173,10 +173,17 @@ def CrowdingDist_kd(x_0:NDArray, x:NDArray) -> float:
     --------
         float: Crowding distance of x_0 from x
     """
-    return np.sum(np.sqrt(np.sum((x_0-x)**2,1)))
+    return np.sum(np.sqrt(np.sum((x_0 - x) ** 2, 1)))
 
 
-def ei_cd(samples, x_train:NDArray, y_train:NDArray, gpr:GPR, alpha_lvl_set:float, EI_star:float):
+def ei_cd(
+    samples,
+    x_train: NDArray,
+    y_train: NDArray,
+    gpr: GPR,
+    alpha_lvl_set: float,
+    EI_star: float,
+):
 
     if len(samples.shape) == 1:
         c = EIcalc_kd(y_train, samples, gpr) - (alpha_lvl_set * (EI_star))
@@ -198,7 +205,9 @@ def ei_cd(samples, x_train:NDArray, y_train:NDArray, gpr:GPR, alpha_lvl_set:floa
     return ret
 
 
-def pointsInTR(samples_in: NDArray, samples_out:NDArray, subregion: NDArray) -> tuple[NDArray, NDArray]:
+def pointsInTR(
+    samples_in: NDArray, samples_out: NDArray, subregion: NDArray
+) -> tuple[NDArray, NDArray]:
     """
 
     Attributes:
@@ -210,26 +219,26 @@ def pointsInTR(samples_in: NDArray, samples_out:NDArray, subregion: NDArray) -> 
     Returns:
     --------
         list: Divided samples and coreesponding robustness values
-    """    
+    """
     regionSamples = []
     corresponding_robustenss = []
-    if samples_in.shape[0] == samples_out.shape[0] and  samples_out.shape[0] != 0:
+    if samples_in.shape[0] == samples_out.shape[0] and samples_out.shape[0] != 0:
 
-        
         boolArray = []
         for dimension in range(len(subregion)):
             subArray = samples_in[:, dimension]
-            logical_subArray = np.logical_and(subArray >= subregion[dimension, 0], subArray <= subregion[dimension, 1])
+            logical_subArray = np.logical_and(
+                subArray >= subregion[dimension, 0], subArray <= subregion[dimension, 1]
+            )
             boolArray.append(np.squeeze(logical_subArray))
-        corresponding_robustenss = samples_out[(np.all(boolArray, axis = 0))]
-        regionSamples = samples_in[(np.all(boolArray, axis = 0)),:]
+        corresponding_robustenss = samples_out[(np.all(boolArray, axis=0))]
+        regionSamples = samples_in[(np.all(boolArray, axis=0)), :]
     else:
-        
+
         corresponding_robustenss = np.array([])
         regionSamples = np.array([[]])
 
     return regionSamples, corresponding_robustenss
-
 
 
 @dataclass(frozen=True, slots=True)
@@ -239,16 +248,16 @@ class LocalBest:
 
     Attributes:
     ----------
-    local_best_x : A restart point in the search space, typically represented as a 
-    1-dimensional vector of size `d`, where `d` is the dimensionality 
+    local_best_x : A restart point in the search space, typically represented as a
+    1-dimensional vector of size `d`, where `d` is the dimensionality
     of the problem.
 
-    local_best_y : A 1x2 vector that contains evaluations of the global and local 
-    test functions at the restart point. 
+    local_best_y : A 1x2 vector that contains evaluations of the global and local
+    test functions at the restart point.
         - The first column corresponds to the evaluation of the global test function.
         - The second column corresponds to the evaluation of the local test function.
     """
-     
+
     local_best_x: NDArray
     local_best_y: NDArray
 
@@ -257,8 +266,8 @@ class LocalBest:
             raise TypeError("local_best_x must be an NDArray")
         if type(self.local_best_y) != np.ndarray:
             raise TypeError("local_best_y must be an NDArray")
-        if len(self.local_best_x.shape) != 1:
-            raise ValueError("local_best_x must be a 1-dimensional vector.")
+        if len(self.local_best_x.shape) != 2:
+            raise ValueError("local_best_x must be a 2-dimensional vector.")
         if self.local_best_y.shape != (1, 2):
             raise ValueError("local_best_y must be a 1x2 matrix.")
 
@@ -299,6 +308,7 @@ class LocalPhase:
         if len(self.local_phase_y.shape) != 2 or self.local_phase_y.shape[1] != 2:
             raise ValueError("local_phase_y must be an (n, 2) matrix.")
 
+
 @dataclass(frozen=True, slots=True)
 class GlobalPhase:
     """
@@ -307,13 +317,13 @@ class GlobalPhase:
     Attributes:
     ----------
     restart_point_x : Any
-        A restart point in the search space, typically represented as a 
-        1-dimensional vector of size `d`, where `d` is the dimensionality 
+        A restart point in the search space, typically represented as a
+        1-dimensional vector of size `d`, where `d` is the dimensionality
         of the problem.
 
     restart_point_y : Any
-        A 1x2 vector that contains evaluations of the global and local 
-        test functions at the restart point. 
+        A 1x2 vector that contains evaluations of the global and local
+        test functions at the restart point.
         - The first column corresponds to the evaluation of the global test function.
         - The second column corresponds to the evaluation of the local test function.
     """
@@ -326,8 +336,10 @@ class GlobalPhase:
             raise TypeError("restart_point_x must be an NDArray")
         if type(self.restart_point_y) != np.ndarray:
             raise TypeError("restart_point_y must be an NDArray")
-        if len(self.restart_point_x.shape) != 1:
-            raise ValueError("restart_point_x must be a 1-dimensional vector.")
+        if len(self.restart_point_x.shape) != 2:
+            raise ValueError(
+                f"restart_point_x must be a 2-dimensional vector. Received {self.restart_point_x}"
+            )
         if self.restart_point_y.shape != (1, 2):
             raise ValueError("restart_point_y must be a 1x2 matrix.")
 
@@ -335,19 +347,19 @@ class GlobalPhase:
 @dataclass(frozen=True, slots=True)
 class InitializationPhase:
     """Optimizer startup phase.
-    
+
     This class represents the initial phase of an optimization process, where samples are generated
-    and evaluated. The attributes of this class hold the initial set of input samples and their associated 
+    and evaluated. The attributes of this class hold the initial set of input samples and their associated
     cost values that were evaluated during the optimizer's startup phase.
 
     Attributes:
     ----------
-        initial_samples_x: A DxN matrix of floating-point numbers, where D is the 
-                                                dimensionality of each sample and N is the number of 
-                                                samples. Each column represents a sample in the input 
+        initial_samples_x: A DxN matrix of floating-point numbers, where D is the
+                                                dimensionality of each sample and N is the number of
+                                                samples. Each column represents a sample in the input
                                                 space.
-        initial_samples_y: A 1-dimensional array (vector) of floating-point numbers 
-                                                 representing the cost or objective function values of 
+        initial_samples_y: A 2-dimensional array (vector) of floating-point numbers
+                                                 representing the cost or objective function values of
                                                  each corresponding sample in `initial_samples_x`.
     """
 
@@ -361,18 +373,20 @@ class InitializationPhase:
             raise TypeError("initial_samples_y must be an NDArray")
         if len(self.initial_samples_x.shape) != 2:
             raise ValueError("initial_samples_x must be a 2D array.")
-        if len(self.initial_samples_y.shape) != 1:
-            raise ValueError("initial_samples_y must be a 1D array.")
-        if self.initial_samples_x.shape[1] != self.initial_samples_y.shape[0]:
-            raise ValueError("The number of samples in initial_samples_x must match the length of initial_samples_y.")
+        if len(self.initial_samples_y.shape) != 2:
+            raise ValueError("initial_samples_y must be a 2D array.")
+        if self.initial_samples_x.shape[0] != self.initial_samples_y.shape[0]:
+            raise ValueError(
+                "The number of samples in initial_samples_x must match the length of initial_samples_y."
+            )
 
 
 def _generate_dataset(output_type: int, *args):
     """
     Generate a dataset for training based on input phases and the desired output type.
 
-    This function combines data from different phases (InitializationPhase, GlobalPhase, 
-    LocalPhase, and LocalBest) into a single training dataset. The dataset consists of input 
+    This function combines data from different phases (InitializationPhase, GlobalPhase,
+    LocalPhase, and LocalBest) into a single training dataset. The dataset consists of input
     features `x_train` and corresponding output labels `y_train`.
 
     Attributes:
@@ -382,8 +396,8 @@ def _generate_dataset(output_type: int, *args):
         If it is 0, we take the 0th column cost function in evaluations.
         If it is 0, we take the 1st column cost function in evaluations.
     *args : tuple
-        A variable-length argument list containing phase objects. The first argument 
-        must be an `InitializationPhase` object. Subsequent arguments can be any 
+        A variable-length argument list containing phase objects. The first argument
+        must be an `InitializationPhase` object. Subsequent arguments can be any
         combination of `GlobalPhase`, `LocalPhase`, or `LocalBest` objects.
 
     Returns:
@@ -391,7 +405,7 @@ def _generate_dataset(output_type: int, *args):
     tuple
         A tuple `(x_train, y_train)` where:
         - `x_train` (ndarray): Combined input features from all phases.
-        - `y_train` (ndarray): Combined output labels corresponding to the `output_type` 
+        - `y_train` (ndarray): Combined output labels corresponding to the `output_type`
           column from all phases.
 
     Raises:
@@ -437,11 +451,11 @@ def _generate_dataset(output_type: int, *args):
 def _is_falsification(evaluation: Optional[Union[NDArray, None]]) -> bool:
     """
     Determines whether a given evaluation result indicates a falsification condition.
-    
+
     Attributes:
     ----------
     evaluation : Optional[Union[NDArray, None]]
-        An array-like object (typically a NumPy array) containing evaluation results 
+        An array-like object (typically a NumPy array) containing evaluation results
         or `None`. The evaluation is expected to have at least two elements if not `None`.
 
     Returns:
@@ -456,7 +470,7 @@ def _is_falsification(evaluation: Optional[Union[NDArray, None]]) -> bool:
     # Check if the evaluation is None or contains any NaN values.
     if evaluation is None or any(np.isnan(evaluation)):
         return True
-    
+
     # Check if the first element is <= 0 and the second element is < 0.
     return evaluation[0] <= 0 and evaluation[1] < 0
 
@@ -479,6 +493,7 @@ class Fn:
         Executes the wrapped function with the provided arguments, increments the call count,
         and prints the call count, the first argument, and the function's output.
     """
+
     def __init__(self, func):
         """
         Initializes the Fn object with a function to be tracked.
@@ -511,10 +526,9 @@ class Fn:
         hybrid_dist = self.func(*arg)
 
         # # Print the call count, the first argument, and the output.
-        # print(self.count, arg[0], hybrid_dist)
+        print(self.count, arg[0], hybrid_dist)
 
         return hybrid_dist
-
 
 
 def _evaluate_samples(
@@ -526,7 +540,7 @@ def _evaluate_samples(
 
     If the behavior is to COVERAGE or FALSIFICATION then the function will terminate when the first
     negative cost value is found.
-    
+
     Attributes:
     ----------
         samples: The set of samples to evaluate as a MxN matrix where N is the number of samples
@@ -537,14 +551,17 @@ def _evaluate_samples(
     ----------
         A OxN matrix of cost values where each row is the cost value of the corresponding sample.
     """
-    
+
     evaluations = []
 
     for sample in samples:
         evaluation = np.array(fn(sample), dtype=np.double)
         evaluations.append(evaluation)
 
-        if _is_falsification(evaluation) and behavior in (Behavior.FALSIFICATION, Behavior.COVERAGE):
+        if _is_falsification(evaluation) and behavior in (
+            Behavior.FALSIFICATION,
+            Behavior.COVERAGE,
+        ):
             break
 
     return np.array(evaluations)
@@ -570,8 +587,8 @@ def PySOARC(
     seed: int,
     local_search: str,
     behavior: Behavior = Behavior.FALSIFICATION,
-) -> list[InitializationPhase | GlobalPhase | LocalPhase|LocalBest]:
-    #Notes:
+) -> list[InitializationPhase | GlobalPhase | LocalPhase | LocalBest]:
+    # Notes:
     # Add none check for InternalGPR
     # Rename gprs for something meaningful
     # Stick to one documnetation
@@ -595,20 +612,28 @@ def PySOARC(
         )
 
     initial_samples = lhs_sampling(n_0, inpRanges, tf_dim, rng)
+    # with open("init_samples_old.pkl","rb") as f:
+    #     # pickle.dump(initial_samples, f)
+    #     initial_samples = pickle.load(f)
+    # print(vafdga)
     # inital_samples_hd = initial_samples
-    initial_sample_distances = _evaluate_samples(
-        initial_samples, test_fn, behavior
-    )
+    initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
 
     initial_points = InitializationPhase(
         initial_samples_x=initial_samples, initial_samples_y=initial_sample_distances
     )
-    algo_journey: list[InitializationPhase | GlobalPhase | LocalPhase|LocalBest] = [initial_points]
+
+    # print(initial_samples.shape)
+    # print(initial_sample_distances.shape)
+    # print(fwq)
+
+    algo_journey: list[InitializationPhase | GlobalPhase | LocalPhase | LocalBest] = [
+        initial_points
+    ]
 
     if any(_is_falsification(sd) for sd in initial_sample_distances) and (
         behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
     ):
-        # TODO: Create return structure
         return algo_journey
 
     while test_fn.count < nSamples:
@@ -640,7 +665,7 @@ def PySOARC(
         )
 
         ga_seed = rng.integers(low=1, high=100000, size=1)
-        ga_result:PyMmooResult = minimize(
+        ga_result: PyMmooResult = minimize(
             problem=problem,
             algorithm=algorithm,
             termination=("n_gen", 100),
@@ -663,7 +688,9 @@ def PySOARC(
                     global_rp_x = ga_result.X[k, :]
         global_rp_x = np.array([global_rp_x])
         global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
-        algo_journey.append(GlobalPhase(restart_point_x= global_rp_x, restart_point_y= global_rp_y))
+        algo_journey.append(
+            GlobalPhase(restart_point_x=global_rp_x, restart_point_y=global_rp_y)
+        )
 
         if _is_falsification(global_rp_y[0]) and (
             behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
@@ -701,14 +728,17 @@ def PySOARC(
             while (
                 local_counter < max_loc_iter
                 and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:, 0])
-                and test_fn.count + (max(trs_max_budget - num_points_present, 0) + 1) < nSamples
+                and test_fn.count + (max(trs_max_budget - num_points_present, 0) + 1)
+                < nSamples
             ):
 
                 # print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
                 if trs_max_budget - num_points_present > 0:
                     num_samples_needed = trs_max_budget - num_points_present
 
-                    local_additional_x = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
+                    local_additional_x = lhs_sampling(
+                        num_samples_needed, trust_region, tf_dim, rng
+                    )
                     local_additional_y = _evaluate_samples(
                         local_additional_x, test_fn, behavior
                     )
@@ -718,7 +748,8 @@ def PySOARC(
                     )
 
                     if any(_is_falsification(sd) for sd in local_additional_y) and (
-                        behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
+                        behavior is Behavior.FALSIFICATION
+                        or behavior is Behavior.COVERAGE
                     ):
                         return algo_journey
 
@@ -759,8 +790,12 @@ def PySOARC(
                     TR_size *= delta
                     trust_region = np.empty((inpRanges.shape))
                     for d in range(tf_dim):
-                        trust_region[d, 0] = max(restart_point_x[0, d] - TR_size, inpRanges[d, 0])
-                        trust_region[d, 1] = min(restart_point_x[0, d] + TR_size, inpRanges[d, 1])
+                        trust_region[d, 0] = max(
+                            restart_point_x[0, d] - TR_size, inpRanges[d, 0]
+                        )
+                        trust_region[d, 1] = min(
+                            restart_point_x[0, d] + TR_size, inpRanges[d, 1]
+                        )
                 else:
                     if eta0 < rho < eta1:
                         # low pass of RC test

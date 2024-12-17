@@ -65,9 +65,9 @@ def test_FN_uniformRandom(rng: random.Generator, data_path: pathlib.Path):
         num_samples, region_support, tf_dim, rng
     )
 
-    with open(data_path / "unif_samp_FN_GR_samples.pickle", "rb") as f:
-        # pickle.dump(samples_in_unif, f)
-        samples_in_unif = pickle.load(f)
+    with open(data_path / "unif_samp_FN_GR_samples.pickle", "wb") as f:
+        pickle.dump(samples_in_unif, f)
+        # samples_in_unif = pickle.load(f)
 
     tf_wrapper = Fn(test_fn)
     

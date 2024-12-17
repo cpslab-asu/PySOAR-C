@@ -138,7 +138,8 @@ class HA:
 
         phi = f"G[0,2] (not ({phi_1})) and (not ({phi_2}))"
         specification = RTAMTDense(phi, {"x_pos" : 0, "y_pos": 1})
-        rob = specification.evaluate(Trace(time, traj))#traj, time)
+        t = Trace(time, traj.T)
+        rob = specification.evaluate(t)#traj, time)
 
         # phi_unsafe_x = "x_pos <= 0.95 and x_pos >= 0.85"
         # phi_unsafe_y = "y_pos <= 0.95 and y_pos >= 0.85"
@@ -148,6 +149,7 @@ class HA:
         dist_2 = self.yellow_polygon_def.distance(Point(init_point))
 
         return (max(0,dist_2), rob.value)
+        # return rob.value, rob.value
         
     def _set_1_f(self, y, t):
         x1, x2 = y

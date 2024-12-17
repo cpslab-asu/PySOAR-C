@@ -47,8 +47,8 @@ def test_behavior_enum_docs():
 
 def test_initialization_correct_values_IP():
     """Test that InitializationPhase correctly initializes the attributes."""
-    samples_x = np.array([[1.0, 2.0], [3.0, 4.0]])  # DxN matrix (2x2)
-    samples_y = np.array([10.0, 20.0])             # 1D array with N elements
+    samples_x = np.array([[1.0, 2.0], [3.0, 4.0], [2,4], [5,4]])  # DxN matrix (4x2)
+    samples_y = np.array([[10.0, 20.0], [30, 40], [4,3], [5., 6.]])             # 2D array with N elements
     
     init_phase = InitializationPhase(initial_samples_x=samples_x, initial_samples_y=samples_y)
     
@@ -57,8 +57,8 @@ def test_initialization_correct_values_IP():
 
 def test_frozen_dataclass_immutability_IP():
     """Test that InitializationPhase is immutable."""
-    samples_x = np.array([[1.0, 2.0], [3.0, 4.0]])
-    samples_y = np.array([10.0, 20.0])
+    samples_x = np.array([[1.0, 2.0], [3.0, 4.0], [2,4], [5,4]])  # DxN matrix (4x2)
+    samples_y = np.array([[10.0, 20.0], [30, 40], [4,3], [5., 6.]])             # 2D array with N elements
     
     init_phase = InitializationPhase(initial_samples_x=samples_x, initial_samples_y=samples_y)
     
@@ -96,7 +96,7 @@ def test_shape_consistency_IP():
 
 def test_globalphase_initialization_correct_values_GP():
     """Test that GlobalPhase correctly initializes the attributes."""
-    restart_x = np.array([1.0, 2.0, 3.0])           # 1-dimensional vector
+    restart_x = np.array([[1.0, 2.0, 3.0]])           # 2-dimensional vector
     restart_y = np.array([[10.0, 20.0]])            # 1x2 matrix
     
     global_phase = GlobalPhase(restart_point_x=restart_x, restart_point_y=restart_y)
@@ -106,14 +106,14 @@ def test_globalphase_initialization_correct_values_GP():
 
 def test_frozen_dataclass_immutability_GP():
     """Test that GlobalPhase is immutable."""
-    restart_x = np.array([1.0, 2.0, 3.0])
+    restart_x = np.array([[1.0, 2.0, 3.0]])
     restart_y = np.array([[10.0, 20.0]])
     # print(type(restart_x))
     # print(type(restart_y))
     global_phase = GlobalPhase(restart_point_x=restart_x, restart_point_y=restart_y)
     
     with pytest.raises(FrozenInstanceError):
-        global_phase.restart_point_x = np.array([0.0, 0.0, 0.0])
+        global_phase.restart_point_x = np.array([[0.0, 0.0, 0.0]])
 
     with pytest.raises(FrozenInstanceError):
         global_phase.restart_point_y = np.array([[0.0, 0.0]])
@@ -129,18 +129,18 @@ def test_invalid_types_GP():
 
 def test_invalid_shapes_GP():
     """Test that GlobalPhase raises an error for invalid input shapes."""
-    restart_x_invalid = np.array([[1.0, 2.0, 3.0]])  # Not a 1D array
+    restart_x_invalid = np.array([1.0, 2.0, 3.0])  # Not a 1D array
     restart_y_invalid = np.array([10.0, 20.0])       # Not a 1x2 matrix
     
     with pytest.raises(ValueError):
         GlobalPhase(restart_point_x=restart_x_invalid, restart_point_y=np.array([[10.0, 20.0]]))
     
     with pytest.raises(ValueError):
-        GlobalPhase(restart_point_x=np.array([1.0, 2.0, 3.0]), restart_point_y=restart_y_invalid)
+        GlobalPhase(restart_point_x=np.array([[1.0, 2.0, 3.0]]), restart_point_y=restart_y_invalid)
 
 def test_restart_point_y_shape_GP():
     """Test that restart_point_y specifically requires a 1x2 matrix."""
-    restart_x = np.array([1.0, 2.0, 3.0])
+    restart_x = np.array([[1.0, 2.0, 3.0]])
     restart_y_invalid = np.array([[10.0], [20.0]])  # Not 1x2
     
     with pytest.raises(ValueError):
@@ -148,7 +148,7 @@ def test_restart_point_y_shape_GP():
 
 def test_restart_point_x_shape_GP():
     """Test that restart_point_x requires a 1-dimensional vector."""
-    restart_x_invalid = np.array([[1.0, 2.0]])  # Not 1D
+    restart_x_invalid = np.array([1.0, 2.0])  # 1D
     restart_y = np.array([[10.0, 20.0]])
     
     with pytest.raises(ValueError):
@@ -158,7 +158,7 @@ def test_restart_point_x_shape_GP():
 
 def test_localbest_initialization_correct_values_LB():
     """Test that LocalBest correctly initializes the attributes."""
-    local_x = np.array([1.0, 2.0, 3.0])           # 1-dimensional vector
+    local_x = np.array([[1.0, 2.0, 3.0]])           # 1-dimensional vector
     local_y = np.array([[5.0, 10.0]])             # 1x2 matrix
     
     local_best = LocalBest(local_best_x=local_x, local_best_y=local_y)
@@ -169,13 +169,13 @@ def test_localbest_initialization_correct_values_LB():
 
 def test_frozen_dataclass_immutability_LB():
     """Test that LocalBest is immutable."""
-    local_x = np.array([1.0, 2.0, 3.0])
+    local_x = np.array([[1.0, 2.0, 3.0]])
     local_y = np.array([[5.0, 10.0]])
     
     local_best = LocalBest(local_best_x=local_x, local_best_y=local_y)
     
     with pytest.raises(FrozenInstanceError):
-        local_best.local_best_x = np.array([0.0, 0.0, 0.0])
+        local_best.local_best_x = np.array([[0.0, 0.0, 0.0]])
 
     with pytest.raises(FrozenInstanceError):
         local_best.local_best_y = np.array([[0.0, 0.0]])
@@ -187,24 +187,24 @@ def test_invalid_types_LB():
         LocalBest(local_best_x="invalid", local_best_y=np.array([[5.0, 10.0]]))
     
     with pytest.raises(TypeError):
-        LocalBest(local_best_x=np.array([1.0, 2.0]), local_best_y="invalid")
+        LocalBest(local_best_x=np.array([[1.0, 2.0]]), local_best_y="invalid")
 
 
 def test_invalid_shapes_LB():
     """Test that LocalBest raises an error for invalid input shapes."""
-    local_x_invalid = np.array([[1.0, 2.0, 3.0]])  # Not a 1D array
+    local_x_invalid = np.array([1.0, 2.0, 3.0])  # Not a 1D array
     local_y_invalid = np.array([5.0, 10.0])        # Not a 1x2 matrix
     
     with pytest.raises(ValueError):
         LocalBest(local_best_x=local_x_invalid, local_best_y=np.array([[5.0, 10.0]]))
     
     with pytest.raises(ValueError):
-        LocalBest(local_best_x=np.array([1.0, 2.0, 3.0]), local_best_y=local_y_invalid)
+        LocalBest(local_best_x=np.array([[1.0, 2.0, 3.0]]), local_best_y=local_y_invalid)
 
 
 def test_local_best_y_shape_LB():
     """Test that local_best_y specifically requires a 1x2 matrix."""
-    local_x = np.array([1.0, 2.0, 3.0])
+    local_x = np.array([[1.0, 2.0, 3.0]])
     local_y_invalid = np.array([[5.0], [10.0]])  # Not 1x2
     
     with pytest.raises(ValueError):
@@ -213,9 +213,9 @@ def test_local_best_y_shape_LB():
 
 def test_local_best_x_shape_LB():
     """Test that local_best_x requires a 1-dimensional vector."""
-    local_x_invalid = np.array([[1.0, 2.0, 3.0]])  # Not 1D
+    local_x_invalid = np.array([1.0, 2.0, 3.0])  # Not 2D
     local_y = np.array([[5.0, 10.0]])
-    
+    # LocalBest(local_best_x=local_x_invalid, local_best_y=local_y)
     with pytest.raises(ValueError):
         LocalBest(local_best_x=local_x_invalid, local_best_y=local_y)
 

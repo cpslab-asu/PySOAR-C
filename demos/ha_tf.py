@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 import polytope as pc
 from scipy.integrate import odeint
 from shapely.geometry import Polygon, Point
-from staliro.specifications import RTAMTDense
-
+from staliro.specifications.rtamt import parse_dense as RTAMTDense
+from staliro import Trace
 
 class HA:
 
@@ -63,11 +63,11 @@ class HA:
         
         time, traj = self._generate_traj(init_point)   
 
-        phi_unsafe_x = "x_pos <= 0.95 and x_pos >= 0.85"
-        phi_unsafe_y = "y_pos <= 0.95 and y_pos >= 0.85"
-        phi_unsafe = f"G[0,2] (not (({phi_unsafe_x}) and ({phi_unsafe_y})))"
-        specification_unsafe = RTAMTDense(phi_unsafe, {"x_pos": 0, "y_pos": 1})
-        dist_1 = specification_unsafe.evaluate(traj.T, time)
+        # phi_unsafe_x = "x_pos <= 0.95 and x_pos >= 0.85"
+        # phi_unsafe_y = "y_pos <= 0.95 and y_pos >= 0.85"
+        # phi_unsafe = f"G[0,2] (not (({phi_unsafe_x}) and ({phi_unsafe_y})))"
+        # specification_unsafe = RTAMTDense(phi_unsafe,  {"x_pos": 0, "y_pos": 1})
+        # dist_1 = specification_unsafe.evaluate(traj.T, time)
 
         dist_2 = self.yellow_polygon_def.distance(Point(init_point))
         
@@ -138,8 +138,8 @@ class HA:
 
         phi = f"G[0,2] (not ({phi_1})) and (not ({phi_2}))"
         specification = RTAMTDense(phi, {"x_pos" : 0, "y_pos": 1})
-        rob = specification.evaluate(traj, time)
-
+        t = Trace(time, traj.T)
+        rob = specification.evaluate(t)#traj, time)
 
         # phi_unsafe_x = "x_pos <= 0.95 and x_pos >= 0.85"
         # phi_unsafe_y = "y_pos <= 0.95 and y_pos >= 0.85"
@@ -148,7 +148,8 @@ class HA:
         # dist_1 = specification_unsafe.evaluate(traj, time)
         dist_2 = self.yellow_polygon_def.distance(Point(init_point))
 
-        return (max(0,dist_2), rob)
+        return (max(0,dist_2), rob.value)
+        # return rob.value, rob.value
         
     def _set_1_f(self, y, t):
         x1, x2 = y
