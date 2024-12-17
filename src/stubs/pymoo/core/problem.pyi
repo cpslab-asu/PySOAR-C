@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class Problem(Protocol):
+    def evaluate(self, X): ...
+    def pareto_front(self, X): ...

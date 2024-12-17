@@ -1,0 +1,3 @@
+from pymoo.core.sampling import Sampling
+
+class FloatRandomSampling(Sampling): ...
