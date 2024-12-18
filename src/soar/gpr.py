@@ -16,7 +16,8 @@ class GaussianProcessRegressorStructure(ABC):
     def fit_gpr(self, x_train, y_train):
         """Method to fit gpr Model
 
-        Args:
+        Attributes:
+        ----------
             x_train: Samples from Training set.
             y_train: Evaluated values of samples from Trainig set.
 
@@ -28,11 +29,13 @@ class GaussianProcessRegressorStructure(ABC):
     def predict_gpr(self, x_test):
         """Method to predict mean and std_dev from gpr model
 
-        Args:
+        Attributes:
+        ----------
             x_train: Samples from Training set.
             
 
         Returns:
+        ---------
             mean
             std_dev
         """
@@ -47,11 +50,13 @@ class GPR:
     def fit(self, x_train, y_train):
         """ Wrapper to fit user defined gpr model
 
-        Args:
+        Attributes:
+        ----------
             x_train: Samples from Training set.
             y_train: Evaluated values of samples from Trainig set.
 
         Raises:
+        ----------
             TypeError: If x_train is not 2 dimensional numpy array
             TypeError: If y_train is not (n,) numpy array
             TypeError: If there is a mismatch between x_train and y_train
@@ -68,13 +73,16 @@ class GPR:
     def predict(self, X):
         """Wrapper to predict from user defined gpr model
 
-        Args:
+        Attributes:
+        ----------
             X: Samples for predicting
 
         Raises:
+        ----------
             TypeError: If x_train is not 2 dimensional numpy array
 
         Returns:
+        ----------
             mean
             std
         """
@@ -112,7 +120,8 @@ class InternalGPR(GaussianProcessRegressorStructure):
     def fit_gpr(self, X, Y):
         """Method to fit gpr Model
 
-        Args:
+        Attributes:
+        ----------
             x_train: Samples from Training set.
             y_train: Evaluated values of samples from Trainig set.
 
@@ -127,11 +136,13 @@ class InternalGPR(GaussianProcessRegressorStructure):
     def predict_gpr(self, X):
         """Method to predict mean and std_dev from gpr model
 
-        Args:
+        Attributes:
+        ----------
             x_train: Samples from Training set.
             
 
         Returns:
+        ---------
             mean
             std_dev
         """
