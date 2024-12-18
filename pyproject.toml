@@ -29,6 +29,7 @@ pytest-cov = "^6.0.0"
 [tool.poetry.dev-dependencies]
 pytest = "^8"
 mypy = "^1"
+ruff = "^0.8"
 
 [tool.pyright]
 include = ["src"]
@@ -37,3 +38,36 @@ stubPath = "src/stubs"
 [tool.mypy]
 mypy_path = "src/stubs"
 files = ["src/**/*.py", "tests/*.py"]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9", "F", "C90",  # Default Flake8 lints
+    "A",                           # Built-in shadowing lints
+    "B",                           # Bugbear lints
+    "I",                           # Isort lints
+    "FURB",                        # Modern python lints
+    "UP",                          # Upgrade lints
+    "C4",                          # List comprehension lints
+    "PL",                          # Pylint lints
+    "PYI",                         # Stub file lints
+    "RET501", "RET502", "RET504",  # Return value lints
+    "TC",                          # Type-checking lints
+    "N8",                          # Naming plugin
+    "TD",                          # TODO plugin
+    "TRY",                         # Error handling lints
+    "FBT",                         # Boolean trap lints
+    "SIM",                         # Simplification lints
+    "PTH",                         # Pathlib migration lints
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/stubs/**/*.pyi" = ["A002", "N801", "N803"]
