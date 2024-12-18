@@ -4,15 +4,19 @@ import numpy as np
 from soar.optimizer import Behavior, PySOARC
 from soar.gpr import InternalGPR
 
-    
+import pickle    
 from ha_tf import HA
+
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 ha = HA()
 
 MAX_BUDGET = 1000
 NUMBER_OF_MACRO_REPLICATIONS = 1
 trs_max_budget = 10
-import pickle
+
 
 for i in range(NUMBER_OF_MACRO_REPLICATIONS):
     starting_seed = 1234565+i

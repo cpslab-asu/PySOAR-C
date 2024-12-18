@@ -537,10 +537,10 @@ class Fn:
 
         # return dist
         if isinstance(dist, numbers.Number):
-            logger.debug(self.count, arg[0], dist)
+            logger.debug(f"{self.count}, {arg[0]}, {dist}")
             return dist, dist
         elif isinstance(dist, tuple) and len(dist) == 2 and all(isinstance(d, numbers.Number) for d in dist):
-            logger.debug(self.count, arg[0], dist)
+            logger.debug(f"{self.count}, {arg[0]}, {dist}")
             return dist
         else:
             raise ValueError("Function must return either a numeric value or a tuple of two numeric values.")
