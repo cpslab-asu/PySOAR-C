@@ -3,3 +3,4 @@ __pycache__
 demos/UR_res
 demos/pysoarc_plots
 demos/pysoarc_res
+*.log
