@@ -1,7 +1,7 @@
 import math
 import numpy as np
 
-from soar.optimizer import Behavior, PySOARC
+from soar.optimizer import Behavior, soarc
 from soar.gpr import InternalGPR
 
 import pickle    
@@ -20,7 +20,7 @@ trs_max_budget = 10
 
 for i in range(NUMBER_OF_MACRO_REPLICATIONS):
     starting_seed = 1234565+i
-    point_history  = PySOARC(
+    point_history  = soarc(
         n_0= 20,
         nSamples = MAX_BUDGET,
         trs_max_budget = trs_max_budget,

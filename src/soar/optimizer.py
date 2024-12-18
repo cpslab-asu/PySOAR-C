@@ -583,7 +583,7 @@ def _evaluate_samples(
 
 
 ##### v9 ####### add user defined parameters to input, break once falsified
-def PySOARC(
+def soarc(
     n_0: int,
     nSamples: int,
     trs_max_budget: int,
@@ -597,7 +597,7 @@ def PySOARC(
     eps_tr: float,
     min_tr_size: float,
     TR_threshold: float,
-    test_fn: Callable[[NDArray[np.double]], NDArray[np.double]],
+    test_fn: Callable[[NDArray],float|tuple[float, float]],
     gpr_model: GaussianProcessRegressor | None,
     seed: int,
     local_search: str,

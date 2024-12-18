@@ -1,18 +1,17 @@
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Sequence, Union
 from numpy.typing import NDArray
 import numpy as np
-from staliro.core.interval import Interval
-from staliro.core.optimizer import ObjectiveFn, Optimizer
-from .optimizer import PySOARC as _pysoaroptimizer
+from staliro.optimizers import ObjFunc, Optimizer
+from .optimizer import soarc as _soaroptimizer
 from .optimizer import Behavior, LocalBest, LocalPhase, InitializationPhase, GlobalPhase
 from .gpr import GaussianProcessRegressor
 
 @dataclass(frozen=True)
-class PySoarResult:
+class SoarResult:
     algoJourney: list[InitializationPhase | GlobalPhase | LocalPhase | LocalBest]
 
-class PySoarOptimizer(Optimizer[tuple[float,float], PySoarResult]):
+class SoarOptimizer(Optimizer[Union[float, tuple[float,float]], SoarResult]):
     
     n_0: int
     trs_max_budget: int
@@ -29,18 +28,19 @@ class PySoarOptimizer(Optimizer[tuple[float,float], PySoarResult]):
     behavior: Behavior
     local_search: str = "gp_local_search"
     
+    def optimize(self, func: ObjFunc[float|tuple[float,float]], params: Optimizer.Params) -> SoarResult:
+    # def optimize(self, func: ObjFunc[tuple[float, float]], bounds: Sequence[Interval], budget: int, seed: int) -> PySoarResult:
+        # Figure this out
+        inpRanges = np.array(params.input_bounds)
 
-    def optimize(self, func: ObjectiveFn[tuple[float, float]], bounds: Sequence[Interval], budget: int, seed: int) -> PySoarResult:
-        inpRanges = np.array((tuple(bound.astuple() for bound in bounds),))[0]
-
-        def test_function(sample: np.ndarray) -> float:
-            return func.eval_sample(Sample(sample))
+        # def test_function(sample: np.ndarray) -> float:
+        #     return func.eval_sample(Sample(sample))
         
         
-        return PySoarResult(
-            _pysoaroptimizer(
+        return SoarResult(
+            _soaroptimizer(
                 n_0= self.n_0,
-                nSamples = budget,
+                nSamples = params.budget,
                 trs_max_budget = self.trs_max_budget,
                 max_loc_iter=self.max_loc_iter,
                 inpRanges = inpRanges,
@@ -52,9 +52,9 @@ class PySoarOptimizer(Optimizer[tuple[float,float], PySoarResult]):
                 eps_tr = self.eps_tr,
                 min_tr_size=self.min_tr_size,
                 TR_threshold=self.TR_threshold,
-                test_fn =test_function,
+                test_fn = func.eval_sample,
                 gpr_model = self.gpr_model,
-                seed = seed,
+                seed = params.seed,
                 local_search= self.local_search,
                 behavior = self.behavior
             )
