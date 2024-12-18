@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import numbers
 from copy import deepcopy
 from scipy.optimize import minimize as minimize_scipy
 from dataclasses import dataclass
@@ -25,6 +26,10 @@ from .sampling import lhs_sampling, uniform_sampling
 from .gpr import GPR, GaussianProcessRegressor
 
 import enum
+import logging
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 def local_best_ei(
@@ -523,12 +528,22 @@ class Fn:
         self.count = self.count + 1  # Increment the call count.
 
         # Call the wrapped function with the given arguments.
-        hybrid_dist = self.func(*arg)
+        dist = self.func(*arg)
+        # if not isinstance(dist, tuple) or len(dist) != 2:
+        #     # print(self.count, arg[0], dist)
+        #     return dist, dist
+        # # # Print the call count, the first argument, and the output.
+        # # print(self.count, arg[0], dist)
 
-        # # Print the call count, the first argument, and the output.
-        print(self.count, arg[0], hybrid_dist)
-
-        return hybrid_dist
+        # return dist
+        if isinstance(dist, numbers.Number):
+            logger.debug(self.count, arg[0], dist)
+            return dist, dist
+        elif isinstance(dist, tuple) and len(dist) == 2 and all(isinstance(d, numbers.Number) for d in dist):
+            logger.debug(self.count, arg[0], dist)
+            return dist
+        else:
+            raise ValueError("Function must return either a numeric value or a tuple of two numeric values.")
 
 
 def _evaluate_samples(

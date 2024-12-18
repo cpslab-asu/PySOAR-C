@@ -1,5 +1,6 @@
 
 import numpy as np
+
 import matplotlib.pyplot as plt
 import polytope as pc
 from scipy.integrate import odeint
@@ -148,8 +149,8 @@ class HA:
         # dist_1 = specification_unsafe.evaluate(traj, time)
         dist_2 = self.yellow_polygon_def.distance(Point(init_point))
 
-        return (max(0,dist_2), rob.value)
-        # return rob.value, rob.value
+        # return (max(0,dist_2), rob.value)
+        return rob.value
         
     def _set_1_f(self, y, t):
         x1, x2 = y

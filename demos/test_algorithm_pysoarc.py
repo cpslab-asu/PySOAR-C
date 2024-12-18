@@ -9,9 +9,9 @@ from ha_tf import HA
 
 ha = HA()
 
-MAX_BUDGET = 500
+MAX_BUDGET = 1000
 NUMBER_OF_MACRO_REPLICATIONS = 1
-trs_max_budget = 15
+trs_max_budget = 10
 import pickle
 
 for i in range(NUMBER_OF_MACRO_REPLICATIONS):
@@ -20,9 +20,9 @@ for i in range(NUMBER_OF_MACRO_REPLICATIONS):
         n_0= 20,
         nSamples = MAX_BUDGET,
         trs_max_budget = trs_max_budget,
-        max_loc_iter=10,
+        max_loc_iter=15,
         inpRanges = np.array([[-1.,1.],[-1.,1.]]),
-        alpha_lvl_set = .05,
+        alpha_lvl_set = .95,
         eta0 = .25,
         eta1 = .75,
         delta = .75,

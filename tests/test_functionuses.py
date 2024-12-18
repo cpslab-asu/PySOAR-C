@@ -21,37 +21,6 @@ def rng() -> random.Generator:
 def data_path() -> pathlib.Path:
     return pathlib.Path(__file__).parent / "data"
 
-# def test_FN_uniformRandom(rng: random.Generator, data_path: pathlib.Path):
-
-#     ha = HA()
-
-#     region_support = np.array([[-1.,1.],[-1.,1.]])
-#     test_fn = Fn(ha.get_cost)
-#     tf_dim = 2
-#     num_samples = 500
-
-#     samples_in_unif = uniform_sampling(
-#         num_samples, region_support, tf_dim, rng
-#     )
-
-#     tf_wrapper = Fn(test_fn)
-    
-#     evaluations = []
-#     for sample in samples_in_unif:
-#         evaluation = np.array(tf_wrapper(sample), dtype=np.double)
-#         evaluations.append(evaluation)
-    
-#     with open(data_path / "unif_samp_FN_GR.pickle", "rb") as f:
-#         # pickle.dump(np.array(evaluations), f)
-#         gr = pickle.load(f)
-    
-#     np.testing.assert_array_equal(np.array(evaluations), gr)
-
-    
-    # initial_sample_distances = _evaluate_samples(
-    #     samples_in_unif, test_fn, Behavior.FALSIFICATION
-    # )
-
 def test_FN_uniformRandom(rng: random.Generator, data_path: pathlib.Path):
 
     ha = HA()
@@ -65,9 +34,9 @@ def test_FN_uniformRandom(rng: random.Generator, data_path: pathlib.Path):
         num_samples, region_support, tf_dim, rng
     )
 
-    with open(data_path / "unif_samp_FN_GR_samples.pickle", "wb") as f:
-        pickle.dump(samples_in_unif, f)
-        # samples_in_unif = pickle.load(f)
+    with open(data_path / "unif_samp_FN_GR_samples.pickle", "rb") as f:
+        # pickle.dump(samples_in_unif, f)
+        samples_in_unif = pickle.load(f)
 
     tf_wrapper = Fn(test_fn)
     
@@ -184,5 +153,78 @@ def test_evaluateSamples_uniformRandom_FALSIFICATION(rng: random.Generator, data
     np.testing.assert_array_equal(initial_sample_distances, gr)
 
 
+@pytest.fixture
+def fn_single_return():
+    # Test function for single return type: f(x) = x**2
+    def f(x):
+        return x**2
+    return Fn(f)
+
+
+@pytest.fixture
+def fn_two_return():
+    # Test function for two return type: f(x) = (x**2, x**3)
+    def f(x):
+        return x**2, x**3
+    return Fn(f)
+
+
+def test_single_return_type(fn_single_return):
+    # Test function with a single argument
+    result = fn_single_return(3)
+    assert result == (9, 9)  # Expected (x**2, x**2) = (9, 9)
+    assert fn_single_return.count == 1  # Function should have been called once
+
+    # Test with another argument
+    result = fn_single_return(5)
+    assert result == (25, 25)  # Expected (x**2, x**2) = (25, 25)
+    assert fn_single_return.count == 2  # Function should have been called twice
+
+
+def test_two_return_type(fn_two_return):
+    # Test function with a single argument
+    result = fn_two_return(2)
+    assert result == (4, 8)  # Expected (x**2, x**3) = (4, 8)
+    assert fn_two_return.count == 1  # Function should have been called once
+
+    # Test with another argument
+    result = fn_two_return(4)
+    assert result == (16, 64)  # Expected (x**2, x**3) = (16, 64)
+    assert fn_two_return.count == 2  # Function should have been called twice
+
+
+def test_invalid_return_type():
+    # Test for invalid return types
+    def f(x):
+        return x**2, "not a number"
     
+    fn = Fn(f)
+
+    with pytest.raises(ValueError):
+        fn(2)  # Should raise ValueError because the second value is not a number
+
+
+def test_invalid_single_return_type():
+    # Test for invalid return type when a single numeric value is expected
+    def f(x):
+        return "not a number"
     
+    fn = Fn(f)
+
+    with pytest.raises(ValueError):
+        fn(2)  # Should raise ValueError because the return value is not a number
+
+
+def test_call_count():
+    # Test to verify call count
+    def f(x):
+        return x
+    
+    fn = Fn(f)
+
+    # Call the function multiple times
+    fn(1)
+    fn(2)
+    fn(3)
+
+    assert fn.count == 3  # Function should have been called 3 times
