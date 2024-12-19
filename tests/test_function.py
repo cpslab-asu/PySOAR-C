@@ -4,7 +4,6 @@ import pickle
 import pytest
 import numpy as np
 import numpy.random as random
-from dataclasses import FrozenInstanceError
 
 from soar.optimizer import Behavior, InitializationPhase, GlobalPhase, LocalBest, LocalPhase, CrowdingDist_kd, Fn
 from soar.optimizer import _evaluate_samples
