@@ -19,13 +19,16 @@ def data_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent / "data"
 
 
+@pytest.fixture()
+def gpr() -> GPR:
+    return GPR(InternalGPR())
+
+
 def _internal_function(x):
     return x[:, 0] ** 2 + x[:, 1] ** 2 + x[:, 2] ** 2
 
 
-def test_gpr_incorrect_input_shape_fitting(rng: rand.Generator):
-    gpr_model = InternalGPR()
-    gpr = GPR(gpr_model)
+def test_gpr_incorrect_input_shape_fitting(rng: rand.Generator, gpr: GPR):
     region_support = np.array([[-1, 1], [-2, 2], [-3, 3]])
     in_samples_1 = uniform_sampling(20, region_support, 3, rng)
     out_samples_1 = _internal_function(in_samples_1)
@@ -34,9 +37,7 @@ def test_gpr_incorrect_input_shape_fitting(rng: rand.Generator):
         gpr.fit(np.array([in_samples_1]), out_samples_1)
 
 
-def test_gpr_incorrect_output_shape_fitting(rng: rand.Generator):
-    gpr_model = InternalGPR()
-    gpr = GPR(gpr_model)
+def test_gpr_incorrect_output_shape_fitting(rng: rand.Generator, gpr: GPR):
     region_support = np.array([[-1, 1], [-2, 2], [-3, 3]])
     in_samples_1 = uniform_sampling(20, region_support, 3, rng)
     out_samples_1 = _internal_function(in_samples_1)
@@ -45,9 +46,7 @@ def test_gpr_incorrect_output_shape_fitting(rng: rand.Generator):
         gpr.fit(in_samples_1, np.array([out_samples_1]).T)
 
 
-def test_gpr_inconsistent_iodat_fitting(rng: rand.Generator):
-    gpr_model = InternalGPR()
-    gpr = GPR(gpr_model)
+def test_gpr_inconsistent_iodat_fitting(rng: rand.Generator, gpr: GPR):
     region_support = np.array([[-1, 1], [-2, 2], [-3, 3]])
     in_samples_1 = uniform_sampling(20, region_support, 3, rng)
     out_samples_1 = _internal_function(in_samples_1)
@@ -58,9 +57,7 @@ def test_gpr_inconsistent_iodat_fitting(rng: rand.Generator):
         gpr.fit(in_samples_1, out_samples_2)
 
 
-def test_gpr_inconsistent_input_prediction(rng: rand.Generator):
-    gpr_model = InternalGPR()
-    gpr = GPR(gpr_model)
+def test_gpr_inconsistent_input_prediction(rng: rand.Generator, gpr: GPR):
     region_support = np.array([[-1, 1], [-2, 2], [-3, 3]])
     in_samples_1 = uniform_sampling(20, region_support, 3, rng)
     out_samples_1 = _internal_function(in_samples_1)
@@ -73,9 +70,7 @@ def test_gpr_inconsistent_input_prediction(rng: rand.Generator):
         gpr.predict(np.array([in_samples_1]))
 
 
-def test_gpr_output_prediction(rng: rand.Generator, data_dir: pathlib.Path):
-    gpr_model = InternalGPR()
-    gpr = GPR(gpr_model)
+def test_gpr_output_prediction(rng: rand.Generator, data_dir: pathlib.Path, gpr: GPR):
     region_support = np.array([[-1, 1], [-2, 2], [-3, 3]])
     in_samples_1 = uniform_sampling(20, region_support, 3, rng)
     out_samples_1 = _internal_function(in_samples_1)
