@@ -1,35 +1,92 @@
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-name = "soar"
-version = "0.1.1"
-description = ""
-authors = ["Tanmay Khandait <tkhandai@asu.edu>"]
-packages = [{include="soar", from = "src"}]
+[project]
+name = "pysoar"
+dynamic = ["version"]
+description = 'Implementation of the SOAR optimizer in Python'
+readme = "README.rst"
+requires-python = ">=3.9,<3.12"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Tanmay Khandait", email = "tkhandai@asu.edu" },
+  { name = "Quinn Thibeault", email = "qthibeau@asu.edu" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "numdifftools ~= 0.9.40",
+    "pyswarms ~= 1.3.0",
+    "pyswarm ~= 0.6",
+    "scikit-optimize ~= 0.9.0",
+    "deap ~= 1.3.3",
+    "pymoo ~= 0.6.0",
+    "polytope ~= 0.2.3",
+    "Shapely ~= 1.8.2",
+    "psy-taliro[rtamt] ~= 1.0.0",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.9,<3.11"
-numpy = "*"
-numdifftools = "^0.9.40"
-pyswarms = "^1.3.0"
-pyswarm = "^0.6"
-scipy = "*"
-matplotlib = "^3.5.2"
-scikit-optimize = "^0.9.0"
-jmetalpy = "^1.5.5"
-deap = "^1.3.3"
-pymoo = "^0.6.0"
-polytope = "^0.2.3"
-Shapely = "^1.8.2"
-psy-taliro = {version = "^1.0.0", extras = ["rtamt"]}
-pytest-cov = "^6.0.0"
+[project.urls]
+Documentation = "https://github.com/cpslab-asu/PySOAR-C#readme"
+Issues = "https://github.com/cpslab-asu/PySOAR-C/issues"
+Source = "https://github.com/cpslab-asu/PySOAR-C"
 
-[tool.poetry.dev-dependencies]
-pytest = "^8"
-mypy = "^1"
-ruff = "^0.8"
+[tool.hatch.version]
+path = "src/soar/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src/soar"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/soar"]
+
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest",
+]
+
+[tool.hatch.envs.default.scripts]
+tests = "pytest {args:tests}"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/pysoar tests}"
+
+[tool.hatch.envs.all]
+matrix = [
+    { python = ["3.8", "3.9", "3.10", "3.11"] }
+]
+
+[tool.hatch.envs.lint]
+detached = true
+dependencies = [
+    "ruff>=0.8",
+]
+
+[tool.hatch.envs.lint.scripts]
+check = [
+    "ruff check {args:src tests}",
+    "ruff format --check {args:src tests}"
+]
+format = "ruff format {args:src tests}"
 
 [tool.pyright]
 include = ["src"]
