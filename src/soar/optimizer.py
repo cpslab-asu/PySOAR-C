@@ -1,32 +1,30 @@
 from __future__ import annotations
 
+import enum
+import logging
 import math
 import numbers
 from copy import deepcopy
-from scipy.optimize import minimize as minimize_scipy
 from dataclasses import dataclass
-from typing import Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable, Literal
 
+from attrs import define, field
 import numpy as np
-from attrs import frozen
-from numpy.typing import NDArray
-
 from pymoo.algorithms.moo.nsga2 import NSGA2
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.problems.functional import FunctionalProblem
-from pymoo.core.result import Result as PyMmooResult
+from scipy.optimize import minimize as minimize_scipy
 from scipy.stats import norm
 
-import pickle
-# from .regions import local_best_ei
+from .gpr import GPR, DefaultGPR
 from .sampling import lhs_sampling, uniform_sampling
-from .gpr import GPR, GaussianProcessRegressor
 
-import enum
-import logging
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from pymoo.core.result import Result as PyMmooResult
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -105,7 +103,31 @@ class Behavior(enum.IntEnum):
     COVERAGE = enum.auto()
 
 
-def _surrogate(gpr_model: GPR, x_train: NDArray):
+class PredictionError(Exception):
+    ...
+
+
+class TestSetShapeError(PredictionError):
+    def __init__(self, x_test: NDArray):
+        super().__init__(f"Received samples set input: Expected (n, dim) array, received {x_test.shape} instead.")
+
+
+class MeanShapeError(PredictionError):
+    def __init__(self, shape: tuple[int, ...]):
+        super().__init__(f"Mean from GPR should be of shape (n, ). Received {shape} instead.")
+
+
+class StdDevShapeError(PredictionError):
+    def __init__(self, shape: tuple[int, ...]):
+        super().__init__(f"Standard Deviation from GPR should be of shape (n, ). Received {shape} instead.")
+
+
+class MismatchedDimensionError(PredictionError):
+    def __init__(self, mean: NDArray, std_dev: NDArray):
+        super().__init__(f"Mean and std_dev mismatch. Mean has a shape of {mean.shape} and std_dev has a shape of {std_dev.shape}.")
+
+
+def _surrogate(model: GPR, x_test: NDArray) -> tuple[NDArray, NDArray]:
     """_surrogate Model function
 
     Attributes:
@@ -118,10 +140,26 @@ def _surrogate(gpr_model: GPR, x_train: NDArray):
         Predicted values of points using gaussian process model
     """
 
-    return gpr_model.predict(x_train)
+    x_test = np.array(x_test)
+
+    if x_test.ndim != 2:  # noqa: PLR2004
+        raise TestSetShapeError(x_test)
+
+    mean, std_dev = model.predict(x_test)
+
+    if mean.ndim != 1:
+        raise MeanShapeError(mean.shape)
+
+    if std_dev.ndim != 1:
+        raise StdDevShapeError(std_dev.shape)
+
+    if mean.shape != std_dev.shape:
+        raise MismatchedDimensionError(mean, std_dev)
+
+    return mean, std_dev
 
 
-def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
+def EIcalc_kd(y_train: NDArray, sample: NDArray, model: GPR) -> NDArray:
     """Acquisition Model: Expected Improvement
 
     Attributes:
@@ -135,9 +173,10 @@ def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
     ---------
         EI of samples
     """
+
     curr_best = np.min(y_train)
     if len(sample.shape) == 2:
-        mu, std = _surrogate(gpr_model, sample)
+        mu, std = _surrogate(model, sample)
         ei_list = []
         for mu_iter, std_iter in zip(mu, std):
             pred_var = std_iter
@@ -153,7 +192,7 @@ def EIcalc_kd(y_train: NDArray, sample: NDArray, gpr_model: GPR) -> NDArray:
         return_ei = np.array(ei_list)
     elif len(sample.shape) == 1:
 
-        mu, std = _surrogate(gpr_model, sample.reshape(1, -1))
+        mu, std = _surrogate(model, sample.reshape(1, -1))
         pred_var = std[0]
         if pred_var > 0:
             var_1 = curr_best - mu[0]
@@ -368,25 +407,29 @@ class InitializationPhase:
                                                  each corresponding sample in `initial_samples_x`.
     """
 
-    initial_samples_x: NDArray[np.double]
-    initial_samples_y: NDArray[np.double]
+    samples: NDArray[np.double]
+    costs: NDArray[np.double]
 
     def __post_init__(self):
-        if type(self.initial_samples_x) != np.ndarray:
+        if type(self.samples) != np.ndarray:
             raise TypeError("initial_samples_x must be an NDArray")
-        if type(self.initial_samples_y) != np.ndarray:
+        if type(self.costs) != np.ndarray:
             raise TypeError("initial_samples_y must be an NDArray")
-        if len(self.initial_samples_x.shape) != 2:
+        if len(self.samples.shape) != 2:
             raise ValueError("initial_samples_x must be a 2D array.")
-        if len(self.initial_samples_y.shape) != 2:
+        if len(self.costs.shape) != 2:
             raise ValueError("initial_samples_y must be a 2D array.")
-        if self.initial_samples_x.shape[0] != self.initial_samples_y.shape[0]:
+        if self.samples.shape[0] != self.costs.shape[0]:
             raise ValueError(
                 "The number of samples in initial_samples_x must match the length of initial_samples_y."
             )
 
 
-def _generate_dataset(output_type: int, *args):
+def _generate_dataset(
+    index: Literal[0, 1],
+    init: InitializationPhase,
+    *phases: GlobalPhase | LocalPhase | LocalBest
+) -> tuple[NDArray, NDArray]:
     """
     Generate a dataset for training based on input phases and the desired output type.
 
@@ -428,32 +471,26 @@ def _generate_dataset(output_type: int, *args):
       - `LocalPhase`: `local_phase_x`, `local_phase_y`
       - `LocalBest`: `local_best_x`, `local_best_y`
     - The `output_type` determines which column of the `y` arrays is included in `y_train`.
-
     """
 
-    if output_type not in [0, 1]:
-        raise ValueError
+    x_train = init.samples
+    y_train = init.costs
 
-    if type(args[0][0]) == InitializationPhase:
-        x_train = args[0][0].initial_samples_x
-        y_train = args[0][0].initial_samples_y[:, output_type]
-    else:
-        raise ValueError
+    for phase in phases:
+        if isinstance(phase, GlobalPhase):
+            x_train = np.vstack((x_train, phase.restart_point_x))
+            y_train = np.hstack((y_train, phase.restart_point_y[:, index]))
+        elif isinstance(phase, LocalPhase):
+            x_train = np.vstack((x_train, phase.local_phase_x))
+            y_train = np.hstack((y_train, phase.local_phase_y[:, index]))
+        else:
+            x_train = np.vstack((x_train, phase.local_best_x))
+            y_train = np.hstack((y_train, phase.local_best_y[:, index]))
 
-    for arg in args[0][1:]:
-        if type(arg) == GlobalPhase:
-            x_train = np.vstack((x_train, arg.restart_point_x))
-            y_train = np.hstack((y_train, arg.restart_point_y[:, output_type]))
-        elif type(arg) == LocalPhase:
-            x_train = np.vstack((x_train, arg.local_phase_x))
-            y_train = np.hstack((y_train, arg.local_phase_y[:, output_type]))
-        elif type(arg) == LocalBest:
-            x_train = np.vstack((x_train, arg.local_best_x))
-            y_train = np.hstack((y_train, arg.local_best_y[:, output_type]))
     return x_train, y_train
 
 
-def _is_falsification(evaluation: Optional[Union[NDArray, None]]) -> bool:
+def _is_falsification(evaluation: NDArray | None) -> bool:
     """
     Determines whether a given evaluation result indicates a falsification condition.
 
@@ -582,6 +619,26 @@ def _evaluate_samples(
     return np.array(evaluations)
 
 
+def _initialize() -> InitializationPhase:
+    initial_samples = lhs_sampling(n_0, input_ranges, tf_dim, rng)
+    initial_costs = _evaluate_samples(initial_samples, fn, behavior)
+    init = InitializationPhase(initial_samples, initial_costs)
+
+
+def _global_search() -> GlobalPhase:
+    pass
+
+
+def _local_search() -> LocalPhase | LocalBest:
+    pass
+
+
+@define(slots=True)
+class Result:
+    init: InitializationPhase
+    phases: list[GlobalPhase | LocalPhase | LocalBest] = field(factory=list)
+
+
 ##### v9 ####### add user defined parameters to input, break once falsified
 def soarc(
     n_0: int,
@@ -597,12 +654,12 @@ def soarc(
     eps_tr: float,
     min_tr_size: float,
     TR_threshold: float,
-    test_fn: Callable[[NDArray],float|tuple[float, float]],
+    test_fn: Callable[[NDArray], float] | Callable[[NDArray], tuple[float, float]],
     gpr_model: GaussianProcessRegressor | None,
     seed: int,
     local_search: str,
     behavior: Behavior = Behavior.FALSIFICATION,
-) -> list[InitializationPhase | GlobalPhase | LocalPhase | LocalBest]:
+) -> Result:
     # Notes:
     # Add none check for InternalGPR
     # Rename gprs for something meaningful
@@ -610,7 +667,9 @@ def soarc(
     # Check function/class names
 
     inpRanges = np.array(inpRanges)
-    test_fn = Fn(test_fn)
+    fn = Fn(test_fn)
+    gpr = DefaultGPR() if gpr_model is None else gpr_model
+
     if inpRanges.ndim != 2:
         raise ValueError("input ranges should be 2-dimensional")
 
@@ -618,44 +677,22 @@ def soarc(
         raise ValueError("input range 2nd dimension should be equal to 2")
 
     rng = np.random.default_rng(seed)
-    np.random.seed(seed + 1000)
-
     tf_dim = inpRanges.shape[0]
+
     if n_0 > nSamples:
         raise ValueError(
             f"Received n_0({n_0}) > nSamples ({nSamples}): Initial samples (n_0) cannot be greater than Maximum Evaluations Budget (nSamples)"
         )
 
-    initial_samples = lhs_sampling(n_0, inpRanges, tf_dim, rng)
-    # with open("init_samples_old.pkl","rb") as f:
-    #     # pickle.dump(initial_samples, f)
-    #     initial_samples = pickle.load(f)
-    # print(vafdga)
-    # inital_samples_hd = initial_samples
-    initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
+    result = Result(init)
+    n_evals = initial_costs.size
 
-    initial_points = InitializationPhase(
-        initial_samples_x=initial_samples, initial_samples_y=initial_sample_distances
-    )
+    if any(_is_falsification(sd) for sd in initial_costs) and behavior is not Behavior.MINIMIZATION:
+        return result
 
-    # print(initial_samples.shape)
-    # print(initial_sample_distances.shape)
-    # print(fwq)
-
-    algo_journey: list[InitializationPhase | GlobalPhase | LocalPhase | LocalBest] = [
-        initial_points
-    ]
-
-    if any(_is_falsification(sd) for sd in initial_sample_distances) and (
-        behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
-    ):
-        return algo_journey
-
-    while test_fn.count < nSamples:
-
-        x_train, y_train = _generate_dataset(1, algo_journey)
-        # print(f"{test_fn.count} Evaluations completed -> {x_train.shape}, {y_train.shape}")
-        gpr = GPR(deepcopy(gpr_model))
+    while fn.count < nSamples:
+        x_train, y_train = _generate_dataset(1, init, *result.phases)
+        gpr = deepcopy(gpr)
         gpr.fit(x_train, y_train)
 
         lower_bound_theta = np.ndarray.flatten(inpRanges[:, 0])
@@ -694,27 +731,24 @@ def soarc(
         best_crowd = math.inf
 
         for k in range(ga_result.F.shape[0]):
-            if ga_result.F[k, 0] <= minNegEI * (1 - alpha_lvl_set):
-                if ga_result.F[k, 1] < best_crowd:
-                    # _logger.debug(
-                    #     f"{ga_result.F[k, 0]} <= {minNegEI * (1-alpha_lvl_set)} -> {ga_result.F[k,0] <= minNegEI * (1-alpha_lvl_set)} \\ {ga_result.F[k,1]} < {best_crowd} -> {ga_result.F[k,1] < best_crowd} \n{global_rp_x}\n*************************************************"
-                    # )
-                    best_crowd = ga_result.F[k, 1]
-                    global_rp_x = ga_result.X[k, :]
+            if ga_result.F[k, 0] <= minNegEI * (1 - alpha_lvl_set) and ga_result.F[k, 1] < best_crowd:
+                # _logger.debug(
+                #     f"{ga_result.F[k, 0]} <= {minNegEI * (1-alpha_lvl_set)} -> {ga_result.F[k,0] <= minNegEI * (1-alpha_lvl_set)} \\ {ga_result.F[k,1]} < {best_crowd} -> {ga_result.F[k,1] < best_crowd} \n{global_rp_x}\n*************************************************"
+                # )
+                best_crowd = ga_result.F[k, 1]
+                global_rp_x = ga_result.X[k, :]
+
         global_rp_x = np.array([global_rp_x])
-        global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
-        algo_journey.append(
+        global_rp_y = _evaluate_samples(global_rp_x, fn, behavior)
+
+        result.phases.append(
             GlobalPhase(restart_point_x=global_rp_x, restart_point_y=global_rp_y)
         )
 
-        if _is_falsification(global_rp_y[0]) and (
-            behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
-        ):
-            # TODO
-            return algo_journey
+        if _is_falsification(global_rp_y[0]) and behavior is not Behavior.MINIMIZATION:
+            return result
 
-        local_sample_x, local_samples_y = _generate_dataset(0, algo_journey)
-
+        local_sample_x, local_samples_y = _generate_dataset(0, init, *result.phases)
         TR_Bounds = np.vstack(
             [
                 global_rp_x[0, :] - inpRanges[:, 0],
@@ -725,53 +759,41 @@ def soarc(
 
         TR_size = np.min(np.abs(TR_Bounds[TR_Bounds >= TR_threshold]))
 
-        trust_region = np.empty((inpRanges.shape))
+        trust_region = np.empty(inpRanges.shape)
+
         for d in range(tf_dim):
             trust_region[d, 0] = max(global_rp_x[0, d] - TR_size, inpRanges[d, 0])
             trust_region[d, 1] = min(global_rp_x[0, d] + TR_size, inpRanges[d, 1])
 
-        local_sample_x_subset, local_sample_y_subset = pointsInTR(
-            local_sample_x, local_samples_y, trust_region
-        )
+        local_sample_x_subset, local_sample_y_subset = pointsInTR(local_sample_x, local_samples_y, trust_region)
         num_points_present = local_sample_x_subset.shape[0]
-
         local_counter = 0
         restart_point_x, restart_point_y = deepcopy(global_rp_x), deepcopy(global_rp_y)
 
         if local_search == "gp_local_search":
-
             while (
                 local_counter < max_loc_iter
                 and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:, 0])
-                and test_fn.count + (max(trs_max_budget - num_points_present, 0) + 1)
+                and fn.count + (max(trs_max_budget - num_points_present, 0) + 1)
                 < nSamples
             ):
 
                 # print(f"Needed: {trs_max_budget}, present: {num_points_present}, More {num_samples_needed} points needed")
                 if trs_max_budget - num_points_present > 0:
                     num_samples_needed = trs_max_budget - num_points_present
+                    local_additional_x = lhs_sampling(num_samples_needed, trust_region, tf_dim, rng)
+                    local_additional_y = _evaluate_samples(local_additional_x, fn, behavior)
 
-                    local_additional_x = lhs_sampling(
-                        num_samples_needed, trust_region, tf_dim, rng
-                    )
-                    local_additional_y = _evaluate_samples(
-                        local_additional_x, test_fn, behavior
-                    )
-
-                    algo_journey.append(
-                        LocalPhase(trust_region, local_additional_x, local_additional_y)
-                    )
+                    result.phases.append(LocalPhase(trust_region, local_additional_x, local_additional_y))
 
                     if any(_is_falsification(sd) for sd in local_additional_y) and (
                         behavior is Behavior.FALSIFICATION
                         or behavior is Behavior.COVERAGE
                     ):
-                        return algo_journey
+                        return result
 
-                x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
-                local_sample_x_subset, local_sample_y_subset = pointsInTR(
-                    x_train_hd, y_train_hd, trust_region
-                )
+                x_train_hd, y_train_hd = _generate_dataset(0, init, *result.phases)
+                local_sample_x_subset, local_sample_y_subset = pointsInTR(x_train_hd, y_train_hd, trust_region)
 
                 # Fit Gaussian Process Meta Model Locally
 
@@ -788,12 +810,13 @@ def soarc(
                     gpr_model,
                     rng,
                 )
-                algo_journey.append(LocalBest(local_best_x, local_best_y))
+
+                result.phases.append(LocalBest(local_best_x, local_best_y))
 
                 if _is_falsification(local_best_y[0]) and (
                     behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
                 ):
-                    return algo_journey
+                    return result
 
                 max_indicator = np.max(np.abs(local_best_x - restart_point_x)) / TR_size
                 test = rng.random()
@@ -858,7 +881,7 @@ def soarc(
                             )
 
                 local_counter += 1
-                x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
+                x_train_hd, y_train_hd = _generate_dataset(0, init, *result.phases)
 
                 local_sample_x_subset, local_sample_y_subset = pointsInTR(
                     x_train_hd, y_train_hd, trust_region
@@ -869,4 +892,4 @@ def soarc(
 
                 # check if budget has been exhausted
 
-    return algo_journey
+    return result
