@@ -1,154 +1,141 @@
 import pathlib
 import pickle
 
-import pytest
 import numpy as np
-import numpy.random as random
+import numpy.random as rand
+import pytest
 
-from soar.optimizer import Behavior, InitializationPhase, GlobalPhase, LocalBest, LocalPhase, CrowdingDist_kd, Fn
-from soar.optimizer import _evaluate_samples
-from soar.sampling import lhs_sampling, uniform_sampling
+from soar.optimizer import Behavior, Fn, _evaluate_samples
+from soar.sampling import uniform_sampling
 
 from .ha_tf import HA
 
+
 @pytest.fixture()
-def rng() -> random.Generator:
-    return random.default_rng(10001)
+def rng() -> rand.Generator:
+    return rand.default_rng(10001)
 
 
 @pytest.fixture()
-def data_path() -> pathlib.Path:
+def data_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent / "data"
 
-def test_FN_uniformRandom(rng: random.Generator, data_path: pathlib.Path):
 
+def test_fn_uniform_random(rng: rand.Generator, data_dir: pathlib.Path):
     ha = HA()
-
-    region_support = np.array([[-1.,1.],[-1.,1.]])
+    region_support = np.array([[-1.0, 1.0], [-1.0, 1.0]])
     test_fn = Fn(ha.get_cost)
     tf_dim = 2
     num_samples = 500
+    samples_in_unif = uniform_sampling(num_samples, region_support, tf_dim, rng)
 
-    samples_in_unif = uniform_sampling(
-        num_samples, region_support, tf_dim, rng
-    )
-
-    with open(data_path / "unif_samp_FN_GR_samples.pickle", "rb") as f:
+    with open(data_dir / "unif_samp_FN_GR_samples.pickle", "rb") as f:
         # pickle.dump(samples_in_unif, f)
         samples_in_unif = pickle.load(f)
 
     tf_wrapper = Fn(test_fn)
-    
     evaluations = []
     for sample in samples_in_unif:
         evaluation = np.array(tf_wrapper(sample), dtype=np.double)
         evaluations.append(evaluation)
-    
-    with open(data_path / "unif_samp_FN_GR_evaluations.pickle", "rb") as f:
+
+    with open(data_dir / "unif_samp_FN_GR_evaluations.pickle", "rb") as f:
         # pickle.dump(np.array(evaluations), f)
         gr = pickle.load(f)
-    
-    np.testing.assert_array_equal(np.array(evaluations), gr)
-    
-def test_FN_uniformRandom_count_noreset(rng: random.Generator):
 
+    np.testing.assert_array_equal(np.array(evaluations), gr)
+
+
+def test_fn_uniform_random_count_noreset(rng: rand.Generator):
     ha = HA()
 
-    region_support = np.array([[-1.,1.],[-1.,1.]])
+    region_support = np.array([[-1.0, 1.0], [-1.0, 1.0]])
     tf_dim = 2
     num_samples = 500
 
-    samples_in_unif_1 = uniform_sampling(
-        num_samples, region_support, tf_dim, rng
-    )
+    samples_in_unif_1 = uniform_sampling(num_samples, region_support, tf_dim, rng)
 
     tf_wrapper_1 = Fn(ha.get_cost)
-    
+
     for sample in samples_in_unif_1:
         np.array(tf_wrapper_1(sample), dtype=np.double)
-    
+
     assert tf_wrapper_1.count == 500
 
-    samples_in_unif_2 = uniform_sampling(
-        num_samples, region_support, tf_dim, rng
-    )
-    
+    samples_in_unif_2 = uniform_sampling(num_samples, region_support, tf_dim, rng)
+
     for sample in samples_in_unif_2:
         np.array(tf_wrapper_1(sample), dtype=np.double)
+
     assert tf_wrapper_1.count == 1000
 
-def test_FN_uniformRandom_count_reset(rng: random.Generator, data_path: pathlib.Path):
 
+def test_fn_uniformRandom_count_reset(rng: rand.Generator, data_dir: pathlib.Path):
     ha = HA()
 
-    region_support = np.array([[-1.,1.],[-1.,1.]])
+    region_support = np.array([[-1.0, 1.0], [-1.0, 1.0]])
     tf_dim = 2
     num_samples = 500
 
-    samples_in_unif_1 = uniform_sampling(
-        num_samples, region_support, tf_dim, rng
-    )
+    samples_in_unif_1 = uniform_sampling(num_samples, region_support, tf_dim, rng)
 
     tf_wrapper_1 = Fn(ha.get_cost)
-    
+
     for sample in samples_in_unif_1:
         np.array(tf_wrapper_1(sample), dtype=np.double)
-    
+
     assert tf_wrapper_1.count == 500
 
-
     tf_wrapper_2 = Fn(ha.get_cost)
-    samples_in_unif_2 = uniform_sampling(
-        num_samples, region_support, tf_dim, rng
-    )
-    
+    samples_in_unif_2 = uniform_sampling(num_samples, region_support, tf_dim, rng)
+
     for sample in samples_in_unif_2:
         np.array(tf_wrapper_2(sample), dtype=np.double)
+
     assert tf_wrapper_2.count == 500
 
-def test_evaluateSamples_uniformRandom_MINIMIZATION(rng: random.Generator, data_path: pathlib.Path):
 
+def test_evaluateSamples_uniformRandom_MINIMIZATION(rng: rand.Generator, data_dir: pathlib.Path):
     ha = HA()
     test_fn = Fn(ha.get_cost)
 
-    with open(data_path / "unif_samp_FN_GR_samples.pickle", "rb") as f:
+    with open(data_dir / "unif_samp_FN_GR_samples.pickle", "rb") as f:
         # pickle.dump(samples_in_unif, f)
         samples_in_unif = pickle.load(f)
 
     tf_wrapper = Fn(test_fn)
-    
-    initial_sample_distances = _evaluate_samples(
-        samples_in_unif, tf_wrapper, Behavior.MINIMIZATION
-    )
+
+    initial_sample_distances = _evaluate_samples(samples_in_unif, tf_wrapper, Behavior.MINIMIZATION)
     print(initial_sample_distances)
 
-    with open(data_path / "unif_samp_FN_GR_evaluations_evaluateSamples_MINI.pickle", "rb") as f:
+    with open(data_dir / "unif_samp_FN_GR_evaluations_evaluateSamples_MINI.pickle", "rb") as f:
         # pickle.dump(initial_sample_distances, f)
         gr = pickle.load(f)
-    
+
     np.testing.assert_array_equal(initial_sample_distances, gr)
 
 
-def test_evaluateSamples_uniformRandom_FALSIFICATION(rng: random.Generator, data_path: pathlib.Path):
-
+def test_evaluateSamples_uniformRandom_FALSIFICATION(
+    rng: rand.Generator, data_dir: pathlib.Path
+):
     ha = HA()
     test_fn = Fn(ha.get_cost)
 
-    with open(data_path / "unif_samp_FN_GR_samples.pickle", "rb") as f:
+    with open(data_dir / "unif_samp_FN_GR_samples.pickle", "rb") as f:
         # pickle.dump(samples_in_unif, f)
         samples_in_unif = pickle.load(f)
 
     tf_wrapper = Fn(test_fn)
-    
+
     initial_sample_distances = _evaluate_samples(
         samples_in_unif, tf_wrapper, Behavior.FALSIFICATION
     )
     print(initial_sample_distances)
 
-    with open(data_path / "unif_samp_FN_GR_evaluations_evaluateSamples_FALSI.pickle", "rb") as f:
+    with open(data_dir / "unif_samp_FN_GR_evaluations_evaluateSamples_FALSI.pickle", "rb") as f:
         # pickle.dump(initial_sample_distances, f)
         gr = pickle.load(f)
-    
+
     np.testing.assert_array_equal(initial_sample_distances, gr)
 
 
@@ -157,6 +144,7 @@ def fn_single_return():
     # Test function for single return type: f(x) = x**2
     def f(x):
         return x**2
+
     return Fn(f)
 
 
@@ -165,6 +153,7 @@ def fn_two_return():
     # Test function for two return type: f(x) = (x**2, x**3)
     def f(x):
         return x**2, x**3
+
     return Fn(f)
 
 
@@ -196,7 +185,7 @@ def test_invalid_return_type():
     # Test for invalid return types
     def f(x):
         return x**2, "not a number"
-    
+
     fn = Fn(f)
 
     with pytest.raises(ValueError):
@@ -207,7 +196,7 @@ def test_invalid_single_return_type():
     # Test for invalid return type when a single numeric value is expected
     def f(x):
         return "not a number"
-    
+
     fn = Fn(f)
 
     with pytest.raises(ValueError):
@@ -218,7 +207,7 @@ def test_call_count():
     # Test to verify call count
     def f(x):
         return x
-    
+
     fn = Fn(f)
 
     # Call the function multiple times
