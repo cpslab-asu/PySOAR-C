@@ -131,3 +131,4 @@ known-first-party = ["soar"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/stubs/**/*.pyi" = ["A002", "N801", "N803"]
+"tests/test_*.py" = ["PLR2004"]
