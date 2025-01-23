@@ -43,4 +43,4 @@ for i in range(NUMBER_OF_MACRO_REPLICATIONS):
     with open(f"pysoarc_max500_rep_50_seed{starting_seed}.pickle", "wb") as f:
         pickle.dump(point_history, f)
 
-
+    print(point_history)

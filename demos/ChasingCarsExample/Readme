@@ -1,0 +1,21 @@
+## 1. SOAR
+
+To run code for `SOAR` on the benchmarks:
+
+1. In the `ChasingCarsExample` directory, use the following command to run the benchmark:
+
+    ```
+    poetry run python benchmarks -m <MODEL> -p <PROPERTY> -i <INSTANCE> -f <Folder for Results>
+    ```
+
+    Here are the follwoing combinations for MODEL, PROPERTY, and INSTANCE:
+
+    | MODEL | INSTANCE | PROPERTY                                          |
+    |----------|-------------|-------------------------------------------------------|
+    | CC       | 1           | CC1, CC2, CC3, CC4, CC5, CCx                          |
+
+    For example: To run CC1 property on the Chasing Cars (CC) model for instance 1 type of signals and store the result in the current directory, use the following command:
+
+    ```
+    poetry run python benchmarks -m CC -p CC1 -i 1 -f .
+    ```
