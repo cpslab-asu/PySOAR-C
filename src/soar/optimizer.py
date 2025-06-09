@@ -1,32 +1,49 @@
 from __future__ import annotations
 
+import enum
+import logging
 import math
 import numbers
+import pickle
 from copy import deepcopy
-from scipy.optimize import minimize as minimize_scipy
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, Union
 
 import numpy as np
+import torch
 from attrs import frozen
+from gpytorch.settings import fast_pred_var
 from numpy.typing import NDArray
-
 from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.core.result import Result as PyMmooResult
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.rnd import FloatRandomSampling
 from pymoo.optimize import minimize
 from pymoo.problems.functional import FunctionalProblem
-from pymoo.core.result import Result as PyMmooResult
+from scipy.optimize import minimize as minimize_scipy
 from scipy.stats import norm
+from torch.quasirandom import SobolEngine
 
-import pickle
-# from .regions import local_best_ei
-from .sampling import lhs_sampling, uniform_sampling
+from .gp import train_gp
 from .gpr import GPR, GaussianProcessRegressor
 
-import enum
-import logging
+# from .regions import local_best_ei
+from .sampling import lhs_sampling, uniform_sampling
+
+
+def to_unit_cube(x, lb, ub):
+    """Project to [0, 1]^d from hypercube with bounds lb and ub"""
+    assert np.all(lb < ub) and lb.ndim == 1 and ub.ndim == 1 and x.ndim == 2
+    xx = (x - lb) / (ub - lb)
+    return xx
+
+
+def from_unit_cube(x, lb, ub):
+    """Project from [0, 1]^d to hypercube with bounds lb and ub"""
+    assert np.all(lb < ub) and lb.ndim == 1 and ub.ndim == 1 and x.ndim == 2
+    xx = x * (ub - lb) + lb
+    return xx
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -49,6 +66,65 @@ class SoarOptions:
     behavior: Behavior
     local_search: str
 
+# def local_best_ei(
+#     pred_sample_x,
+#     pred_sample_y,
+#     tf_wrapper,
+#     test_fn,
+#     tf_dim,
+#     trust_region,
+#     xTrain_local,
+#     yTrain_local,
+#     behavior: Behavior,
+#     gpr_model,
+#     rng,
+# ) -> tuple[NDArray, NDArray, np.float64]:
+#     # Fit Gaussian Process Meta Model Locally
+#     gpr = GPR(deepcopy(gpr_model))
+#     gpr.fit(xTrain_local, yTrain_local)
+
+#     EI_obj = lambda x: -1 * EIcalc_kd(yTrain_local, x, gpr)
+#     lower_bound_theta = np.ndarray.flatten(trust_region[:, 0])
+#     upper_bound_theta = np.ndarray.flatten(trust_region[:, 1])
+
+#     random_samples = uniform_sampling(10000, trust_region, tf_dim, rng)
+#     min_bo_val = EI_obj(random_samples)
+
+#     min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])[0]
+#     min_bo_val = np.min(min_bo_val)
+
+#     for _ in range(9):
+#         new_params = minimize_scipy(
+#             EI_obj,
+#             bounds=list(zip(lower_bound_theta, upper_bound_theta)),
+#             x0=min_bo,
+#         )
+
+#         if not new_params.success:
+#             continue
+
+#         if min_bo is None or EI_obj(new_params.x) < min_bo_val:
+#             min_bo = new_params.x
+#             min_bo_val = EI_obj(min_bo)
+#     new_params = minimize_scipy(
+#         EI_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_bo
+#     )
+#     xk = np.array([np.array(new_params.x)])
+
+#     rob = tf_wrapper(xk, test_fn, behavior)
+
+#     if rob is None and behavior is Behavior.COVERAGE:
+#         rho = [None]
+#     else:
+#         rho = (pred_sample_y[0][0] - rob[0][0]) / (
+#             gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0] + 1e-6
+#         )
+
+#     rho_ret = rho[0]
+#     return xk, rob, rho_ret
+
+
+
 def local_best_ei(
     pred_sample_x,
     pred_sample_y,
@@ -61,50 +137,96 @@ def local_best_ei(
     behavior: Behavior,
     gpr_model,
     rng,
+    batch_size = 10
 ) -> tuple[NDArray, NDArray, np.float64]:
-    # Fit Gaussian Process Meta Model Locally
-    gpr = GPR(deepcopy(gpr_model))
-    gpr.fit(xTrain_local, yTrain_local)
+    # Extract trust region bounds
+    lb_tr = trust_region[:, 0]
+    ub_tr = trust_region[:, 1]
+    
+    # Normalize training data to trust region unit cube
+    X_train_norm = to_unit_cube(xTrain_local, lb_tr, ub_tr)
+    y_train = yTrain_local.ravel()
+    
+    # Standardize targets
+    mu_y = np.median(y_train)
+    sigma_y = np.std(y_train)
+    sigma_y = 1.0 if sigma_y < 1e-6 else sigma_y
+    y_train_std = (y_train - mu_y) / sigma_y
 
-    EI_obj = lambda x: -1 * EIcalc_kd(yTrain_local, x, gpr)
-    lower_bound_theta = np.ndarray.flatten(trust_region[:, 0])
-    upper_bound_theta = np.ndarray.flatten(trust_region[:, 1])
+    # Convert to PyTorch tensors
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+    dtype = torch.float64
+    X_torch = torch.tensor(X_train_norm, dtype=dtype, device=device)
+    y_torch = torch.tensor(y_train_std, dtype=dtype, device=device)
 
-    random_samples = uniform_sampling(2000, trust_region, tf_dim, rng)
-    min_bo_val = EI_obj(random_samples)
-
-    min_bo = np.array([random_samples[np.argmin(min_bo_val), :]])[0]
-    min_bo_val = np.min(min_bo_val)
-
-    for _ in range(9):
-        new_params = minimize_scipy(
-            EI_obj,
-            bounds=list(zip(lower_bound_theta, upper_bound_theta)),
-            x0=min_bo,
-        )
-
-        if not new_params.success:
-            continue
-
-        if min_bo is None or EI_obj(new_params.x) < min_bo_val:
-            min_bo = new_params.x
-            min_bo_val = EI_obj(min_bo)
-    new_params = minimize_scipy(
-        EI_obj, bounds=list(zip(lower_bound_theta, upper_bound_theta)), x0=min_bo
+    # Train GP using TuRBO's method
+    gp = train_gp(
+        train_x=X_torch,
+        train_y=y_torch,
+        use_ard=True,
+        num_steps=50,
+        hypers={}
     )
-    xk = np.array([np.array(new_params.x)])
 
-    rob = tf_wrapper(xk, test_fn, behavior)
+    # Get best point in normalized space
+    best_idx = np.argmin(y_train_std)
+    x_center = X_train_norm[best_idx][None, :]
+    # x_center = to_unit_cube(pred_sample_x, lb_tr, ub_tr)
 
+    # Calculate anisotropic weights from lengthscales
+    lengthscales = gp.covar_module.base_kernel.lengthscale.detach().cpu().numpy().ravel()
+    weights = lengthscales / np.mean(lengthscales)
+    weights = weights / np.prod(weights) ** (1/len(weights))
+
+    # Generate candidate points using Sobol sequence
+    n_cand = 10000
+    sobol = SobolEngine(tf_dim, scramble=True, seed=int(rng.integers(1e6)))
+    X_cand_norm = sobol.draw(n_cand).to(dtype=dtype, device=device).cpu().detach().numpy()
+
+    # Apply anisotropic trust region
+    lb = np.clip(x_center - weights * 1.0, 0, 1)
+    ub = np.clip(x_center + weights * 1.0, 0, 1)
+    X_cand_norm = lb + (ub - lb) * X_cand_norm
+
+    # Thompson sampling
+    with torch.no_grad(), fast_pred_var():
+        X_cand_torch = torch.tensor(X_cand_norm, dtype=dtype, device=device)
+        posterior = gp.likelihood(gp(X_cand_torch))
+        y_cand = posterior.sample(torch.Size([batch_size])).cpu().numpy()
+
+    X_next = np.ones((batch_size, tf_dim))
+    for i in range(batch_size):
+        indbest = np.argmin(y_cand[:,i])
+        X_next[i,:] = deepcopy(X_cand_norm[indbest, :])
+        y_cand[indbest, :] = np.inf
+    # Select best candidate
+    # best_cand_idx = np.argmin(y_cand)
+    # x_cand_norm = X_cand_norm[best_cand_idx][None, :]
+    x_cand_orig = from_unit_cube(X_next, lb_tr, ub_tr)
+
+    # Evaluate candidate
+    rob = tf_wrapper(x_cand_orig, test_fn, behavior)
+
+    # Compute improvement ratio
     if rob is None and behavior is Behavior.COVERAGE:
-        rho = [None]
+        rho = None
     else:
-        rho = (pred_sample_y[0][0] - rob[0][0]) / (
-            gpr.predict(pred_sample_x)[0] - gpr.predict(xk)[0] + 1e-6
-        )
+        with torch.no_grad(), fast_pred_var():
+            # Predict at candidate point
+            cand_torch = torch.tensor(X_next, dtype=dtype, device=device)
+            mu_cand = gp(cand_torch).mean.cpu().numpy()[0] * sigma_y + mu_y
+            
+            # Predict at reference point
+            pred_x_norm = to_unit_cube(pred_sample_x, lb_tr, ub_tr)
+            pred_x_torch = torch.tensor(pred_x_norm, dtype=dtype, device=device)
+            mu_pred = gp(pred_x_torch).mean.cpu().numpy()[0] * sigma_y + mu_y
 
-    rho_ret = rho[0]
-    return xk, rob, rho_ret
+        # Calculate actual and predicted improvements
+        actual_improve = pred_sample_y[0][0] - rob[:,0]
+        predicted_improve = mu_pred - mu_cand
+        rho = np.mean(actual_improve / (predicted_improve + 1e-10))
+
+    return x_cand_orig, rob, rho
 
 
 class Behavior(enum.IntEnum):
@@ -290,8 +412,8 @@ class LocalBest:
             raise TypeError("local_best_y must be an NDArray")
         if len(self.local_best_x.shape) != 2:
             raise ValueError("local_best_x must be a 2-dimensional vector.")
-        if self.local_best_y.shape != (1, 2):
-            raise ValueError("local_best_y must be a 1x2 matrix.")
+        if self.local_best_y.shape[1] !=  2:
+            raise ValueError("local_best_y must be a nx2 matrix.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -625,7 +747,7 @@ def soarc(
     # Rename gprs for something meaningful
     # Stick to one documnetation
     # Check function/class names
-
+    best_till_now = np.inf
     inpRanges = np.array(inpRanges)
     test_fn = Fn(test_fn)
     if inpRanges.ndim != 2:
@@ -650,7 +772,8 @@ def soarc(
     # print(vafdga)
     # inital_samples_hd = initial_samples
     initial_sample_distances = _evaluate_samples(initial_samples, test_fn, behavior)
-
+    best_till_now = min(np.min(initial_sample_distances), best_till_now)
+    
     # logger.debug(initial_samples.shape)
     # logger.debug(initial_sample_distances.shape)
     num_pts = min(initial_sample_distances.shape[0], initial_samples.shape[0])
@@ -686,14 +809,14 @@ def soarc(
             n_var=inpRanges.shape[0],
             objs=[
                 lambda x: -1 * EIcalc_kd(y_train, x, gpr),
-                lambda x: -1 * CrowdingDist_kd(x, x_train),
+                lambda x: CrowdingDist_kd(x, x_train),
             ],
             xl=lower_bound_theta,
             xu=upper_bound_theta,
         )
 
         algorithm = NSGA2(
-            pop_size=50,
+            pop_size=500,
             sampling=FloatRandomSampling(),
             crossover=SBX(prob=0.9, eta=15),
             mutation=PM(eta=20),
@@ -704,7 +827,7 @@ def soarc(
         ga_result: PyMmooResult = minimize(
             problem=problem,
             algorithm=algorithm,
-            termination=("n_gen", 100),
+            termination=("n_gen", 50),
             seed=ga_seed[0],
             verbose=False,
         )
@@ -724,6 +847,10 @@ def soarc(
                     global_rp_x = ga_result.X[k, :]
         global_rp_x = np.array([global_rp_x])
         global_rp_y = _evaluate_samples(global_rp_x, test_fn, behavior)
+        
+        # print(global_rp_x, global_rp_y)
+        best_till_now = min(np.min(global_rp_y), best_till_now)
+        logger.debug(f"in Restart Phase: Best till Now -> {best_till_now}")
         algo_journey.append(
             GlobalPhase(restart_point_x=global_rp_x, restart_point_y=global_rp_y)
         )
@@ -751,6 +878,7 @@ def soarc(
             trust_region[d, 0] = max(global_rp_x[0, d] - TR_size, inpRanges[d, 0])
             trust_region[d, 1] = min(global_rp_x[0, d] + TR_size, inpRanges[d, 1])
 
+        # print(trust_region)
         local_sample_x_subset, local_sample_y_subset = pointsInTR(
             local_sample_x, local_samples_y, trust_region
         )
@@ -758,13 +886,13 @@ def soarc(
 
         local_counter = 0
         restart_point_x, restart_point_y = deepcopy(global_rp_x), deepcopy(global_rp_y)
-
+        # print(trust_region)
         if local_search == "gp_local_search":
 
             while (
                 local_counter < max_loc_iter
                 and TR_size > eps_tr * np.min(inpRanges[:, 1] - inpRanges[:, 0])
-                and test_fn.count + (max(trs_max_budget - num_points_present, 0) + 1)
+                and test_fn.count + (max(trs_max_budget - num_points_present, 0) + 10)
                 < nSamples
             ):
 
@@ -778,7 +906,8 @@ def soarc(
                     local_additional_y = _evaluate_samples(
                         local_additional_x, test_fn, behavior
                     )
-
+                    best_till_now = min(np.min(local_additional_y), best_till_now)
+                    logger.debug(f"In Local Phase: Best till Now -> {best_till_now}")
                     algo_journey.append(
                         LocalPhase(trust_region, local_additional_x, local_additional_y)
                     )
@@ -795,7 +924,6 @@ def soarc(
                 )
 
                 # Fit Gaussian Process Meta Model Locally
-
                 local_best_x, local_best_y, rho = local_best_ei(
                     restart_point_x,
                     restart_point_y,
@@ -809,9 +937,16 @@ def soarc(
                     gpr_model,
                     rng,
                 )
+                    
+                best_till_now = min(np.min(local_best_y), best_till_now)
+                logger.debug(f"In Local BO phase Best till Now -> {best_till_now}")
                 algo_journey.append(LocalBest(local_best_x, local_best_y))
 
-                if _is_falsification(local_best_y[0]) and (
+                # if _is_falsification(local_best_y[0]) and (
+                #     behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
+                # ):
+                #     return algo_journey
+                if any(_is_falsification(sd) for sd in local_best_y) and (
                     behavior is Behavior.FALSIFICATION or behavior is Behavior.COVERAGE
                 ):
                     return algo_journey
@@ -834,9 +969,11 @@ def soarc(
                         )
                 else:
                     if eta0 < rho < eta1:
+                        
                         # low pass of RC test
-                        restart_point_x = local_best_x
-                        restart_point_y = local_best_y
+                        idx = np.argmin(local_best_y[:,0])
+                        restart_point_x = local_best_x[idx].reshape(1,-1)
+                        restart_point_y = local_best_y[idx].reshape(1,-1)
 
                         valid_bound = np.array(
                             [
@@ -857,8 +994,11 @@ def soarc(
                             )
                     else:
                         # high pass of RC test
-                        restart_point_x = local_best_x
-                        restart_point_y = local_best_y
+                        # restart_point_x = local_best_x
+                        # restart_point_y = local_best_y
+                        idx = np.argmin(local_best_y[:,0])
+                        restart_point_x = local_best_x[idx].reshape(1,-1)
+                        restart_point_y = local_best_y[idx].reshape(1,-1)
                         valid_bound = np.array(
                             [
                                 np.min(np.abs(restart_point_x[0, :] - inpRanges[:, 0])),
@@ -877,7 +1017,10 @@ def soarc(
                             trust_region[d, 1] = min(
                                 restart_point_x[0, d] + TR_size, inpRanges[d, 1]
                             )
-
+                # print("*****************")
+                # print(best_till_now)
+                # print(trust_region)
+                # print("*****************")
                 local_counter += 1
                 x_train_hd, y_train_hd = _generate_dataset(0, algo_journey)
 
@@ -889,5 +1032,5 @@ def soarc(
                 # print(f"{TR_size} ---- {eps_tr * np.min(inpRanges[:, 1] - inpRanges[:,0])}")
 
                 # check if budget has been exhausted
-
+        logger.debug(f"Best Till Now = {best_till_now}")
     return algo_journey
