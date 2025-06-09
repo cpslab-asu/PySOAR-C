@@ -1,4 +1,6 @@
 import math
+import os
+from pathlib import Path
 import numpy as np
 
 from soar.optimizer import Behavior, soarc
@@ -30,19 +32,23 @@ def ackley(curxvec):
     return exval
 
 MAX_BUDGET = 10000
-NUMBER_OF_MACRO_REPLICATIONS = 1
+function = "ackley"
+dim = 20
+NUMBER_OF_MACRO_REPLICATIONS = 10
 trs_max_budget = 100
 
+randomstate_main = np.random.RandomState(seed = 4572329)
+random_seed_sim = randomstate_main.randint(1976,size = NUMBER_OF_MACRO_REPLICATIONS)
 
-for i in range(NUMBER_OF_MACRO_REPLICATIONS):
-    starting_seed = 1234565+i
+for starting_seed in random_seed_sim:
+    
     point_history  = soarc(
         n_0= 100,
         nSamples = MAX_BUDGET,
         trs_max_budget = trs_max_budget,
         max_loc_iter=10,
-        inpRanges = np.array([[-32.,32.] for _ in range(10)]),
-        alpha_lvl_set = .95,
+        inpRanges = np.array([[-32.,32.] for _ in range(dim)]),
+        alpha_lvl_set = .5,
         eta0 = .25,
         eta1 = .75,
         delta = .75,
@@ -56,7 +62,12 @@ for i in range(NUMBER_OF_MACRO_REPLICATIONS):
         local_search= "gp_local_search",
         behavior = Behavior.MINIMIZATION
         )
-    with open(f"pysoarc_max500_rep_50_seed{starting_seed}_2.pickle", "wb") as f:
+
+    folder_path = Path.cwd() / Path(f"LS-exp/{function}/dim_{dim}")
+    folder_path.mkdir(parents=True, exist_ok=True)
+    
+    file_path = folder_path / f"seed_{starting_seed}.pkl"
+    with open(file_path, "wb") as f:
         pickle.dump(point_history, f)
 
     print(point_history)
