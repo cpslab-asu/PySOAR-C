@@ -33,7 +33,7 @@ def ackley(curxvec):
 
 MAX_BUDGET = 10000
 function = "ackley"
-dim = 20
+dim = 10
 NUMBER_OF_MACRO_REPLICATIONS = 10
 trs_max_budget = 100
 
@@ -44,18 +44,18 @@ for starting_seed in random_seed_sim:
     
     point_history  = soarc(
         n_0= 100,
-        nSamples = MAX_BUDGET,
+        n_samples = MAX_BUDGET,
         trs_max_budget = trs_max_budget,
-        max_loc_iter=10,
-        inpRanges = np.array([[-32.,32.] for _ in range(dim)]),
-        alpha_lvl_set = .5,
+        max_loc_iter=100,
+        inp_ranges = np.array([[-32.,32.] for _ in range(dim)]),
+        alpha_lvl_set = 0.95,
         eta0 = .25,
         eta1 = .75,
         delta = .75,
         gamma = 1.25,
-        eps_tr = 0.0000001,
-        min_tr_size=1.28,
-        TR_threshold=1,
+        eps_tr = 0.0001,
+        min_tr_size=20,
+        tr_threshold=0.0001,
         test_fn = ackley,
         gpr_model = InternalGPR(),
         seed = starting_seed,

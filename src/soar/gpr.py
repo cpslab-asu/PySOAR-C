@@ -127,11 +127,12 @@ class InternalGPR(GaussianProcessRegressorStructure):
 
         
         """
-        X_scaled = self.scale.fit_transform(X)
+        # X_scaled = self.scale.fit_transform(X)
+        
         
         with catch_warnings():
             warnings.simplefilter("ignore")
-            self.gpr_model.fit(X_scaled, Y)
+            self.gpr_model.fit(X, Y)
 
     def predict_gpr(self, X):
         """Method to predict mean and std_dev from gpr model
@@ -146,9 +147,9 @@ class InternalGPR(GaussianProcessRegressorStructure):
             mean
             std_dev
         """
-        x_scaled = self.scale.transform(X)
+        # x_scaled = self.scale.transform(X)
         with catch_warnings():
             warnings.simplefilter("ignore")
-            yPred, predSigma = self.gpr_model.predict(x_scaled, return_std=True)
+            yPred, predSigma = self.gpr_model.predict(X, return_std=True)
         return yPred, predSigma
 

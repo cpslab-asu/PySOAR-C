@@ -28,6 +28,7 @@ pytest-cov = "^6.0.0"
 matlabengine = "23.2.3"
 gpytorch = "1.14"
 torch = "2.7.0"
+botorch = "^0.14.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8"
