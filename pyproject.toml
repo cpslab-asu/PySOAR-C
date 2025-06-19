@@ -25,7 +25,6 @@ polytope = "^0.2.3"
 Shapely = "^1.8.2"
 psy-taliro = {version = "^1.0.0", extras = ["rtamt"]}
 pytest-cov = "^6.0.0"
-matlabengine = "23.2.3"
 gpytorch = "1.14"
 torch = "2.7.0"
 botorch = "^0.14.0"
