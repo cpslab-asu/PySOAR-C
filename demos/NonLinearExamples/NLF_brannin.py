@@ -1,38 +1,53 @@
+# from ha_tf import HA
+import logging
 import math
 import os
+import pickle
 from pathlib import Path
+
 import numpy as np
+import torch
+from torch.autograd import Variable
 
-from soar.optimizer import Behavior, soarc
 from soar.gpr import InternalGPR
-
-import pickle    
-# from ha_tf import HA
-
-import logging
+from soar.optimizer import Behavior, soarc
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-import math
-import numpy as np
-# import torch
-# from torch.autograd import Variable
+def branin(x):
+    x = torch.asarray(x)
+    flat = x.dim() == 1
+    if flat:
+        x = x.view(1, -1)
+    ndim = x.size(1)
+    n_repeat = np.int32(ndim / 2)
+    n_dummy = ndim % 2
 
-def ackley(curxvec):
-    a=20
-    b=0.2
-    c=2*np.pi
-    d = len(curxvec)
-    sum1 = np.sum(curxvec**2)
-    sum2 = np.sum(np.cos(c*curxvec))
-    term1 = -a * np.exp(-b*np.sqrt(sum1/d))
-    term2 = -np.exp(sum2/d)
-    exval =  term1 + term2 + a + np.exp(1)
-    return exval
+    shift = torch.cat([torch.FloatTensor([2.5, 7.5]).repeat(n_repeat), torch.zeros(n_dummy)])
+
+    if hasattr(x, 'data'):
+        x.data = x.data * 7.5 + shift.type_as(x.data)
+    else:
+        x = x * 7.5 + shift.type_as(x)
+    a = 1
+    b = 5.1 / (4 * math.pi ** 2)
+    c = 5.0 / math.pi
+    r = 6
+    s = 10
+    t = 1.0 / (8 * math.pi)
+    output = 0
+    for i in range(n_repeat):
+        output += a * (x[:, 2 * i + 1] - b * x[:, 2 * i] ** 2 + c * x[:, 2 * i] - r) ** 2 + s * (1 - t) * torch.cos(x[:, 2 * i]) + s
+    output /= float(n_repeat)
+    if flat:
+        return float(output.squeeze(0))
+    else:
+        return np.array(output)[0]
+
 
 MAX_BUDGET = 10000
-function = "ackley"
+function = "branin"
 dim = 10
 NUMBER_OF_MACRO_REPLICATIONS = 10
 trs_max_budget = 100
@@ -47,7 +62,7 @@ for starting_seed in random_seed_sim:
         n_samples = MAX_BUDGET,
         trs_max_budget = trs_max_budget,
         max_loc_iter=100,
-        inp_ranges = np.array([[-32.,32.] for _ in range(dim)]),
+        inp_ranges = np.array([[-1.,1.] for _ in range(dim)]),
         alpha_lvl_set = 0.95,
         eta0 = .25,
         eta1 = .75,
@@ -56,7 +71,7 @@ for starting_seed in random_seed_sim:
         eps_tr = 0.000001,
         min_tr_size=64,
         tr_threshold=0.0001,
-        test_fn = ackley,
+        test_fn = branin,
         gpr_model = InternalGPR(),
         seed = starting_seed,
         local_search= "gp_local_search",
